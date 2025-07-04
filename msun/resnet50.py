@@ -69,7 +69,7 @@ class MultiScaleResNet(lightning.LightningModule):
                       nn.BatchNorm2d(64), nn.ReLU(inplace=True)]
             if c['pool']:
                 layers.append(nn.MaxPool2d(3, 2, 1))
-            layers.append(base.layer1)
+            layers.append(copy.deepcopy(base.layer1))
             self.subnets.append(nn.Sequential(*layers))
 
         # Automatically determine the unified spatial size from the last subnet

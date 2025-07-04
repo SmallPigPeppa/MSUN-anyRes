@@ -70,7 +70,7 @@ class MultiScaleDenseNet(lightning.LightningModule):
             if c['pool']:
                 layers.append(nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
             # attach DenseNet first block
-            layers.append(base.features.denseblock1)
+            layers.append(copy.deepcopy(base.features.denseblock1))
             self.subnets.append(nn.Sequential(*layers))
 
         # Determine spatial size for unified head
