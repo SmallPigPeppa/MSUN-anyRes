@@ -21,7 +21,7 @@ python3 msun/resnet50.py fit \
   --trainer.logger.name msun-RN50 \
   --trainer.logger.log_model False \
   --trainer.logger.offline False \
-  --model_checkpoint.dirpath /mnt/bn/liuwenzhuo-lf/ckpt/msun-anyres \
+  --model_checkpoint.dirpath /mnt/bn/liuwenzhuo-lf/ckpt/msun-anyres/resnet50 \
   --model_checkpoint.monitor val/acc224 \
   --model_checkpoint.save_top_k 1 \
   --model_checkpoint.save_last True \
