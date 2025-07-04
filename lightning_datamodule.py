@@ -48,7 +48,6 @@ class ImageNetDataModule(LightningDataModule):
         """Return training DataLoader."""
         return DataLoader(self.train_ds, batch_size=self.batch_size,
                           shuffle=True, num_workers=self.num_workers,
-                          prefetch_factor=2,
                           pin_memory=True)
 
     def val_dataloader(self):
