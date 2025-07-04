@@ -13,6 +13,7 @@ python3 msun/resnet50.py fit \
   --model.unified_res 56 \
   --model.alpha 1.0 \
   --trainer.max_epochs 80 \
+  --trainer.num_nodes 2 \
   --trainer.precision bf16-mixed \
   --trainer.accelerator gpu \
   --trainer.logger WandbLogger \
