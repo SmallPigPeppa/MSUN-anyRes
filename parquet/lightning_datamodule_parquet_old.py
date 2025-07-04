@@ -12,10 +12,9 @@ from PIL import Image
 import pandas as pd
 from tqdm import tqdm
 
-
 class ParquetImageDataset(Dataset):
     """A Dataset that reads image metadata (and optionally image bytes) from Parquet files,
-       loading them in parallel with a progress bar, and maps string labels to integer indices."""
+       loading them in parallel with a progress bar."""
     def __init__(self,
                  parquet_dir: str,
                  image_dir: str,
@@ -23,10 +22,11 @@ class ParquetImageDataset(Dataset):
                  read_workers: int = 16):
         """
         Args:
-            parquet_dir:  path to folder containing *.parquet files
-            image_dir:    if images are on disk, root directory for img_path
-            transform:    torchvision transforms to apply
-            read_workers: number of threads for reading parquet files
+            parquet_dir: path to folder containing *.parquet files
+            image_dir:   if images are on disk, root directory for img_path
+            transform:   torchvision transforms to apply
+            read_workers: number of threads for reading parquet files;
+                          defaults to os.cpu_count() if None.
         """
         self.image_dir = image_dir
         self.transform = transform
@@ -44,19 +44,14 @@ class ParquetImageDataset(Dataset):
                            total=len(files),
                            desc="Loading parquet files"):
                 dfs.append(df)
+
         self.df = pd.concat(dfs, ignore_index=True)
 
-        # validate required columns
+        # expected columns: either 'image_bytes' OR 'img_path', and a 'label' column
         if 'image_bytes' not in self.df.columns and 'img_path' not in self.df.columns:
             raise KeyError("Parquet must have either 'image_bytes' or 'img_path' column")
         if 'label' not in self.df.columns:
             raise KeyError("Parquet must have a 'label' column")
-
-        # build label-to-index mapping
-        # ensure labels are strings (or hashable)
-        unique_labels = sorted(self.df['label'].astype(str).unique())
-        self.class_to_idx = {cls_name: idx for idx, cls_name in enumerate(unique_labels)}
-        self.idx_to_class = {idx: cls_name for cls_name, idx in self.class_to_idx.items()}
 
     def __len__(self):
         return len(self.df)
@@ -64,24 +59,21 @@ class ParquetImageDataset(Dataset):
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
 
-        # load image either from bytes column or from disk path
+        # 1) If image_bytes column exists, decode directly
         if 'image_bytes' in row and row.image_bytes is not None:
             img = Image.open(io.BytesIO(row.image_bytes)).convert('RGB')
+        # 2) Otherwise, load from disk via img_path
         else:
             img_path = row.img_path
             full_path = os.path.join(self.image_dir, img_path)
             with open(full_path, 'rb') as f:
                 img = Image.open(io.BytesIO(f.read())).convert('RGB')
 
-        # apply transforms if any
         if self.transform:
             img = self.transform(img)
 
-        # map original label to integer index
-        label_str = str(row.label)
-        label_idx = self.class_to_idx[label_str]
-        return img, label_idx
-
+        label = int(row.label)
+        return img, label
 
 
 class ImageNetParquetDataModule(LightningDataModule):
