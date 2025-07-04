@@ -127,7 +127,7 @@ class MultiScaleResNet(lightning.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         imgs, labels = batch
-        fixed = [32, 56, 96, 128, 176, 224]
+        fixed = [32, 48, 96, 128, 176, 224]
         accs, sir_vals = {}, {}
         for r in fixed:
             _, y = self.encode_by_res(F.interpolate(imgs, (r, r), mode='bilinear', align_corners=False))
