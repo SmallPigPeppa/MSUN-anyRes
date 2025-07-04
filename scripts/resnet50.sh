@@ -12,7 +12,7 @@ python3 msun/resnet50.py fit \
   --model.weight_decay 1e-4 \
   --model.unified_res 56 \
   --model.alpha 1.0 \
-  --trainer.max_epochs 80 \
+  --trainer.max_epochs 90 \
   --trainer.devices 8 \
   --trainer.precision bf16-mixed \
   --trainer.accelerator gpu \
