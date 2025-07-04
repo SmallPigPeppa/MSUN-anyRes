@@ -5,13 +5,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torchmetrics
-from torchvision.models import vgg16
+from torchvision.models import vgg16_bn
 import lightning
 from lightning.pytorch import cli
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from lightning_datamodule import ImageNetDataModule
-
+LAYERS = 24
 
 class MultiScaleVGG(lightning.LightningModule):
     """Multi-scale VGG16 with SIR and explicit CE/SIR thresholds."""
@@ -35,7 +35,7 @@ class MultiScaleVGG(lightning.LightningModule):
                      [224]]
 
         # Base VGG16 backbone
-        base = vgg16(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
+        base = vgg16_bn(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
 
         # Build MSUN: unified head and per-scale sub-nets
         self._build_msun(res_lists, base)
@@ -49,17 +49,17 @@ class MultiScaleVGG(lightning.LightningModule):
         # Store resolution lists
         self.res_lists = res_lists
 
-        # Unified head: remove first 10 convolutional layers
+        # Unified head: remove first LAYERS convolutional layers
         u = copy.deepcopy(base)
-        for i in range(10):
+        for i in range(LAYERS):
             u.features[i] = nn.Identity()
         self.unified_net = u
 
-        # Per-scale subnets: keep first 10 convolutional layers
+        # Per-scale subnets: keep first LAYERS convolutional layers
         self.subnets = nn.ModuleList()
         for _ in res_lists:
             v = copy.deepcopy(base)
-            layers = [v.features[i] for i in range(10)]
+            layers = [v.features[i] for i in range(LAYERS)]
             self.subnets.append(nn.Sequential(*layers))
 
         # Determine feature-map spatial size after subnets

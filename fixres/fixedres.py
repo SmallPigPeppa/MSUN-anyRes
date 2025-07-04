@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torchvision.models import resnet50, densenet121, vgg16, mobilenet_v2
+from torchvision.models import resnet50, densenet121, vgg16_bn, mobilenet_v2
 import lightning
 from lightning.pytorch import cli
 from lightning.pytorch.callbacks.model_checkpoint import ModelCheckpoint
@@ -35,7 +35,7 @@ class FixedResNet(lightning.LightningModule):
         elif name == 'densenet121':
             self.base = densenet121(pretrained=False, num_classes=self.hparams.num_classes)
         elif name == 'vgg16':
-            self.base = vgg16(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
+            self.base = vgg16_bn(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
         elif name == 'mobilenetv2':
             self.base = mobilenet_v2(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
         else:
