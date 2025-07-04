@@ -13,7 +13,6 @@ python3 msun/resnet50.py fit \
   --model.unified_res 56 \
   --model.alpha 1.0 \
   --trainer.max_epochs 90 \
-  --trainer.strategy ddp_find_unused_parameters_true \
   --trainer.devices 8 \
   --trainer.precision 16 \
   --trainer.accelerator gpu \
@@ -27,3 +26,5 @@ python3 msun/resnet50.py fit \
   --model_checkpoint.save_top_k 1 \
   --model_checkpoint.save_last True \
   --lr_monitor.logging_interval epoch
+
+#  --trainer.strategy ddp_find_unused_parameters_true \
