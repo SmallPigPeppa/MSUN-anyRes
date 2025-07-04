@@ -3,7 +3,7 @@
 
 # Example: modify values as needed
 python3 msun/resnet50.py fit \
-  --data.data_dir ./imagenet \
+  --data.data_dir ./imagenet2 \
   --data.batch_size 256 \
   --data.num_workers 16 \
   --data.img_size 224 \
