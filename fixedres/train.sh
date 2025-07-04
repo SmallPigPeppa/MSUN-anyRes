@@ -7,7 +7,7 @@ models=("resnet50" "densenet121" "vgg16" "mobilenetv2")
 for model_name in "${models[@]}"; do
   echo "Starting training for model: $model_name"
 
-  python3 fixedres/fixedres.py fit \
+  python3 fixedres/main.py fit \
     --data.data_dir ./imagenet \
     --data.batch_size 256 \
     --data.num_workers 16 \
