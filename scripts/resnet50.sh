@@ -14,7 +14,7 @@ python3 msun/resnet50.py fit \
   --model.alpha 1.0 \
   --trainer.max_epochs 90 \
   --trainer.strategy ddp_find_unused_parameters_true \
-  --trainer.devices 1 \
+  --trainer.devices 8 \
   --trainer.precision 16 \
   --trainer.accelerator gpu \
   --trainer.logger WandbLogger \
