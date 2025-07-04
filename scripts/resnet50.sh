@@ -3,7 +3,7 @@
 
 # Example: modify values as needed
 python3 msun/resnet50.py \
-  --data_dir /path/to/imagenet \
+  --data_dir /mnt/hdfs/byte_content_security/user/liuwenzhuo/datasets/imagenet \
   --batch_size 256 \
   --num_workers 8 \
   --img_size 224 \
