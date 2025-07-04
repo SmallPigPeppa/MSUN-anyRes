@@ -10,7 +10,7 @@ DATA_DIR    = '/mnt/bn/liuwenzhuo-hl-data/datasets/imagenet'         # Root dire
 OUTPUT_DIR  = './imagenet_parquet'   # Where to write the .parquet files
 SPLITS      = ['train', 'val']
 COMPRESSION = 'snappy'
-MAX_WORKERS = 32  # Adjust based on your machine’s CPU cores
+MAX_WORKERS = 64  # Adjust based on your machine’s CPU cores
 DEBUG_LIMIT = 10000  # Max rows per Parquet file
 # --------------------------------
 
