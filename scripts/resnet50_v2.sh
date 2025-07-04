@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Explicit startup script for training MultiScaleResNet via LightningCLI
 
-# Example: modify values as needed
 python3 msun/resnet50_v2.py fit \
   --data.data_dir ./imagenet \
   --data.batch_size 256 \
@@ -16,7 +15,7 @@ python3 msun/resnet50_v2.py fit \
   --trainer.accelerator gpu \
   --trainer.logger WandbLogger \
   --trainer.logger.project msun-anyres \
-  --trainer.logger.name msun-RN50 \
+  --trainer.logger.name msun-resnet50 \
   --trainer.logger.log_model False \
   --trainer.logger.offline False \
   --model_checkpoint.dirpath /mnt/bn/liuwenzhuo-lf/ckpt/msun-anyres/resnet50 \

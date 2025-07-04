@@ -1,21 +1,19 @@
-import os
 import random
+import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import pytorch_lightning as pl
+import torch.optim as optim
 import torchmetrics
 from torchvision.models import densenet121
+import lightning
+from lightning.pytorch import cli
+from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
-from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
-from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning import Trainer
-from imagenet_dali import ClassificationDALIDataModule
-from args import parse_args
+from lightning_datamodule import ImageNetDataModule
 
-PRETRAINED = False
 
-class MultiScaleDenseNet(pl.LightningModule):
+class MultiScaleDenseNet(lightning.LightningModule):
     """Multi-scale DenseNet121 with SIR and explicit CE/SIR thresholds."""
 
     def __init__(
@@ -25,28 +23,36 @@ class MultiScaleDenseNet(pl.LightningModule):
         weight_decay: float = 1e-4,
         max_epochs: int = 100,
         alpha: float = 1.0,
-        pretrained: bool = PRETRAINED,
     ):
         super().__init__()
         self.save_hyperparameters()
 
         # Define resolution groups
-        res_lists = [list(range(32, 81, 16)),
-                     list(range(96, 145, 16)),
+        res_lists = [list(range(32, 65, 16)),
+                     list(range(80, 145, 16)),
                      list(range(160, 209, 16)),
                      [224]]
-        base = densenet121(pretrained=pretrained)
+
+        # Base DenseNet for shared head
+        base = densenet121(pretrained=False, num_classes=self.hparams.num_classes)
         self._build_msun(res_lists, base)
 
-        # Classifier and losses
-        feat_dim = base.classifier.in_features
-        self.classifier = nn.Linear(feat_dim, num_classes)
+        # Losses and metrics
         self.ce_loss = nn.CrossEntropyLoss()
         self.mse_loss = nn.MSELoss()
-        self.acc = torchmetrics.Accuracy(task="multiclass", num_classes=num_classes)
+        self.acc = torchmetrics.Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
 
-    def _build_msun(self, res_lists, base):
-        # Per-resolution subnets
+    def _build_msun(self, res_lists, base: nn.Module):
+        # Unified head: remove initial conv/pool and first denseblock
+        u = copy.deepcopy(base)
+        u.features.conv0 = nn.Identity()
+        u.features.norm0 = nn.Identity()
+        u.features.relu0 = nn.Identity()
+        u.features.pool0 = nn.Identity()
+        u.features.denseblock1 = nn.Identity()
+        self.unified_net = u
+
+        # Per-scale subnets: initial conv layers + first denseblock
         configs = [
             {'k': 3, 's': 1, 'p': 1, 'pool': False, 'r': res_lists[0]},
             {'k': 5, 's': 1, 'p': 2, 'pool': True,  'r': res_lists[1]},
@@ -55,123 +61,120 @@ class MultiScaleDenseNet(pl.LightningModule):
         ]
         self.res_lists = [c['r'] for c in configs]
         self.subnets = nn.ModuleList()
-        for cfg in configs:
+        for c in configs:
             layers = [
-                nn.Conv2d(3, 64, cfg['k'], cfg['s'], cfg['p'], bias=False),
+                nn.Conv2d(3, 64, kernel_size=c['k'], stride=c['s'], padding=c['p'], bias=False),
                 nn.BatchNorm2d(64),
                 nn.ReLU(inplace=True)
             ]
-            if cfg['pool']:
-                layers.append(nn.MaxPool2d(3, 2, 1))
-            # Attach first DenseNet block
+            if c['pool']:
+                layers.append(nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
+            # attach DenseNet first block
             layers.append(base.features.denseblock1)
             self.subnets.append(nn.Sequential(*layers))
 
-        # Unified head: reuse DenseNet feature extractor minus its initial layers
-        u_net = densenet121(pretrained=self.hparams.pretrained)
-        # Remove front layers to rely only on higher-level features
-        u_net.features.conv0 = nn.Identity()
-        u_net.features.norm0 = nn.Identity()
-        u_net.features.relu0 = nn.Identity()
-        u_net.features.pool0 = nn.Identity()
-        u_net.features.denseblock1 = nn.Identity()
-        # Build unified net
-        self.unified_net = nn.Sequential(
-            u_net.features,
-            nn.AdaptiveAvgPool2d(1)
-        )
-
-        # Compute spatial size for interpolation
+        # Determine spatial size for unified head
         with torch.no_grad():
-            max_res = max(self.res_lists[-1])
-            dummy = torch.zeros(1, 3, max_res, max_res, device=self.device)
-            z = self.subnets[-1](dummy)
-            self.unified_size = z.shape[-1]
+            max_r = max(self.res_lists[-1])
+            dummy = torch.zeros(1, 3, max_r, max_r, device=self.device)
+            zs = self.subnets[-1](
+                F.interpolate(dummy, size=(max_r, max_r), mode='bilinear', align_corners=False)
+            )
+            self.z_size = zs.shape[-1]
 
-    def encode_random(self, x):
+    def forward_random(self, x: torch.Tensor):
         zs, ys = [], []
         for net, r_list in zip(self.subnets, self.res_lists):
             r = random.choice(r_list)
             z = net(F.interpolate(x, size=(r, r), mode='bilinear', align_corners=False))
-            ys.append(
-                self.unified_net(
-                    F.interpolate(z, size=self.unified_size, mode='bilinear', align_corners=False)
-                ).flatten(1)
+            y = self.unified_net(
+                F.interpolate(z, size=self.z_size, mode='bilinear', align_corners=False)
             )
             zs.append(z)
+            ys.append(y)
         return zs, ys
 
-    def encode_by_res(self, x):
+    def forward_by_res(self, x: torch.Tensor):
         h = x.shape[2]
         for net, r_list in zip(self.subnets, self.res_lists):
             if h in r_list:
                 z = net(x)
                 y = self.unified_net(
-                    F.interpolate(z, size=self.unified_size, mode='bilinear', align_corners=False)
-                ).flatten(1)
+                    F.interpolate(z, size=self.z_size, mode='bilinear', align_corners=False)
+                )
                 return z, y
-        # Fallback: highest-res subnet
-        z = self.subnets[-1](x)
-        y = self.unified_net(
-            F.interpolate(z, size=self.unified_size, mode='bilinear', align_corners=False)
-        ).flatten(1)
-        return z, y
 
     def training_step(self, batch, batch_idx):
         imgs, labels = batch
-        zs, feats = self.encode_random(imgs)
+        zs, ys = self.forward_random(imgs)
 
-        # Cross-entropy losses
-        ce_losses = [self.ce_loss(self.classifier(y), labels) for y in feats]
-        total_ce = sum(ce_losses)
+        # Cross-entropy losses per scale
+        ce_thr = [0.] * len(ys)
+        ce_losses = [self.ce_loss(y, labels) for y in ys]
+        masked_ce = [l if l >= t else torch.zeros_like(l) for l, t in zip(ce_losses, ce_thr)]
+        total_ce = sum(masked_ce)
 
-        # SIR losses w.r.t. last (highest-res) subnet
+        # SIR losses vs largest scale
         ref = zs[-1]
+        sir_thr = [0.] * (len(zs) - 1)
         sir_losses = [
             self.mse_loss(
-                F.interpolate(z, self.unified_size, mode='bilinear', align_corners=False),
-                F.interpolate(ref, self.unified_size, mode='bilinear', align_corners=False)
-            )
-            for z in zs[:-1]
+                F.interpolate(z, self.z_size, mode='bilinear', align_corners=False),
+                F.interpolate(ref, self.z_size, mode='bilinear', align_corners=False)
+            ) for z in zs[:-1]
         ]
-        total_sir = sum(sir_losses)
+        masked_sir = [l if l >= t else torch.zeros_like(l) for l, t in zip(sir_losses, sir_thr)]
+        total_sir = sum(masked_sir)
 
+        # combined loss
         loss = total_ce + self.hparams.alpha * total_sir
 
-        # Logging accuracies per scale
-        for i, y in enumerate(feats, start=1):
-            acc = self.acc(self.classifier(y), labels)
-            self.log(f"train/acc{i}", acc, prog_bar=(i==1))
-            self.log(f"train/ce{i}", ce_losses[i-1])
-            self.log(f"train/sir{i}", sir_losses[i-1] if i < len(ce_losses) else torch.tensor(0.0, device=self.device))
-        self.log("train/ce_tot", total_ce)
-        self.log("train/sir_tot", total_sir)
+        # log metrics
+        logs = {}
+        for i, (ce, sir, y) in enumerate(zip(masked_ce, masked_sir + [None], ys), start=1):
+            logs[f'ce{i}'] = ce
+            logs[f'sir{i}'] = sir if i < len(masked_ce) else torch.tensor(0.0, device=self.device)
+            logs[f'acc{i}'] = self.acc(y, labels)
+        logs['ce_tot'] = total_ce
+        logs['sir_tot'] = total_sir
+        self.log_dict({f'train/{k}': v for k, v in logs.items()}, prog_bar=['train/acc1'])
         return loss
 
     def validation_step(self, batch, batch_idx):
         imgs, labels = batch
         fixed = [32, 48, 96, 128, 176, 224]
-        # Accuracies
+        accs = {}
+        sir_vals = {}
         for r in fixed:
-            _, y = self.encode_by_res(F.interpolate(imgs, (r, r), mode='bilinear', align_corners=False))
-            acc = self.acc(self.classifier(y), labels)
-            self.log(f"val/acc{r}", acc, prog_bar=(r==224))
-        # SIR
-        ref_z, _ = self.encode_by_res(F.interpolate(imgs, (224, 224), mode='bilinear', align_corners=False))
-        for r in fixed[:-1]:
-            z, _ = self.encode_by_res(F.interpolate(imgs, (r, r), mode='bilinear', align_corners=False))
-            sir = self.mse_loss(
-                F.interpolate(z, self.unified_size, mode='bilinear', align_corners=False),
-                F.interpolate(ref_z, self.unified_size, mode='bilinear', align_corners=False)
+            _, y = self.forward_by_res(
+                F.interpolate(imgs, (r, r), mode='bilinear', align_corners=False)
             )
-            self.log(f"val/sir{r}", sir)
+            accs[r] = self.acc(y, labels)
+        ref_z, _ = self.forward_by_res(
+            F.interpolate(imgs, (224, 224), mode='bilinear', align_corners=False)
+        )
+        for r in fixed[:-1]:
+            z, _ = self.forward_by_res(
+                F.interpolate(imgs, (r, r), mode='bilinear', align_corners=False)
+            )
+            sir_vals[r] = self.mse_loss(
+                F.interpolate(z, self.z_size, mode='bilinear', align_corners=False),
+                F.interpolate(ref_z, self.z_size, mode='bilinear', align_corners=False)
+            )
+        loss = self.ce_loss(
+            self.unified_net(
+                F.interpolate(ref_z, (self.z_size, self.z_size), mode='bilinear', align_corners=False)
+            ), labels
+        )
+        logs = {f'acc{r}': v for r, v in accs.items()}
+        logs.update({f'sir{r}': v for r, v in sir_vals.items()})
+        logs['val/loss'] = loss
+        self.log_dict(logs, prog_bar=['val/acc224'])
+        return loss
 
     def configure_optimizers(self):
-        opt = torch.optim.SGD(
-            self.parameters(),
-            lr=self.hparams.learning_rate,
-            weight_decay=self.hparams.weight_decay,
-            momentum=0.9
+        opt = optim.AdamW(
+            self.parameters(), lr=self.hparams.learning_rate, weight_decay=self.hparams.weight_decay
         )
         sched = LinearWarmupCosineAnnealingLR(
             opt,
@@ -180,37 +183,20 @@ class MultiScaleDenseNet(pl.LightningModule):
             warmup_start_lr=0.01 * self.hparams.learning_rate,
             eta_min=0.01 * self.hparams.learning_rate
         )
-        return [opt], [sched]
+        return {'optimizer': opt, 'lr_scheduler': sched}
 
-if __name__ == "__main__":
-    args = parse_args()
-    pl.seed_everything(42)
-    model = MultiScaleDenseNet(
-        num_classes=args.num_classes,
-        learning_rate=args.learning_rate,
-        weight_decay=args.weight_decay,
-        max_epochs=args.max_epochs,
-        alpha=args.alpha if hasattr(args, 'alpha') else 1.0,
-        pretrained=PRETRAINED
+
+class CLI(cli.LightningCLI):
+    def add_arguments_to_parser(self, parser):
+        parser.link_arguments("trainer.max_epochs", "model.max_epochs")
+        parser.add_lightning_class_args(ModelCheckpoint, 'model_checkpoint')
+        parser.add_lightning_class_args(LearningRateMonitor, 'lr_monitor')
+
+
+if __name__ == '__main__':
+    CLI(
+        MultiScaleDenseNet,
+        ImageNetDataModule,
+        save_config_callback=None,
+        seed_everything_default=42
     )
-    checkpoint = ModelCheckpoint(monitor="val/acc224", mode="max", dirpath=args.checkpoint_dir,
-                                 save_top_k=1, save_last=True)
-    lr_monitor = LearningRateMonitor(logging_interval="epoch")
-    logger = WandbLogger(name=f"{args.run_name}_MSUN", project=args.project,
-                         entity=args.entity, offline=args.offline)
-    datamodule = ClassificationDALIDataModule(
-        train_data_path=os.path.join(args.dataset_path, 'train'),
-        val_data_path=os.path.join(args.dataset_path, 'val'),
-        num_workers=args.num_workers,
-        batch_size=args.batch_size
-    )
-    trainer = Trainer.from_argparse_args(
-        args,
-        callbacks=[checkpoint, lr_monitor],
-        logger=logger,
-        precision=16,
-        accelerator="ddp",
-        gradient_clip_val=1.0,
-        check_val_every_n_epoch=args.eval_every
-    )
-    trainer.fit(model, datamodule=datamodule)

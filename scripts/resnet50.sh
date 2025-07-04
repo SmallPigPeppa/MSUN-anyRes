@@ -16,7 +16,7 @@ python3 msun/resnet50.py fit \
   --trainer.accelerator gpu \
   --trainer.logger WandbLogger \
   --trainer.logger.project msun-anyres \
-  --trainer.logger.name msun-RN50 \
+  --trainer.logger.name msun-resnet50 \
   --trainer.logger.log_model False \
   --trainer.logger.offline False \
   --model_checkpoint.dirpath /mnt/bn/liuwenzhuo-lf/ckpt/msun-anyres/resnet50 \
