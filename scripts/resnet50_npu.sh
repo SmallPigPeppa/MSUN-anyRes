@@ -14,7 +14,7 @@ python3 msun/resnet50.py fit \
   --model.alpha 1.0 \
   --trainer.max_epochs 90 \
   --trainer.devices 16 \
-  --trainer.precision bf16-mixed \
+  --trainer.precision 16 \
   --trainer.accelerator gpu \
   --trainer.logger WandbLogger \
   --trainer.logger.project msun-anyres \
