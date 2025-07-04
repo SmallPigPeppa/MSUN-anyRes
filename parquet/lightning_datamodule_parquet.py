@@ -1,39 +1,50 @@
-import os
-import glob
-import io
-import pandas as pd
-from PIL import Image
-
-import torch
 from torch.utils.data import Dataset, DataLoader
-
 from lightning import LightningDataModule
 from torchvision import transforms
 from torchvision.transforms import AutoAugment, AutoAugmentPolicy
 
 
+import os
+import glob
+import io
+from concurrent.futures import ThreadPoolExecutor
+from PIL import Image
+import pandas as pd
+from tqdm import tqdm
+
 class ParquetImageDataset(Dataset):
-    """A Dataset that reads image metadata (and optionally image bytes) from Parquet."""
+    """A Dataset that reads image metadata (and optionally image bytes) from Parquet files,
+       loading them in parallel with a progress bar."""
     def __init__(self,
                  parquet_dir: str,
                  image_dir: str,
-                 transform=None):
+                 transform=None,
+                 read_workers: int = None):
         """
         Args:
             parquet_dir: path to folder containing *.parquet files
-            image_dir: if images are on disk, root directory for img_path
-            transform: torchvision transforms to apply
+            image_dir:   if images are on disk, root directory for img_path
+            transform:   torchvision transforms to apply
+            read_workers: number of threads for reading parquet files;
+                          defaults to os.cpu_count() if None.
         """
         self.image_dir = image_dir
         self.transform = transform
+        self.read_workers = read_workers or os.cpu_count()
 
         # find all .parquet files in this split
         files = sorted(glob.glob(os.path.join(parquet_dir, '*.parquet')))
         if not files:
             raise FileNotFoundError(f"No parquet files found in {parquet_dir}")
 
-        # read & concatenate
-        dfs = [pd.read_parquet(f) for f in files]
+        # read & concatenate in parallel with a tqdm progress bar
+        dfs = []
+        with ThreadPoolExecutor(max_workers=self.read_workers) as executor:
+            for df in tqdm(executor.map(pd.read_parquet, files),
+                           total=len(files),
+                           desc="Loading parquet files"):
+                dfs.append(df)
+
         self.df = pd.concat(dfs, ignore_index=True)
 
         # expected columns: either 'image_bytes' OR 'img_path', and a 'label' column
