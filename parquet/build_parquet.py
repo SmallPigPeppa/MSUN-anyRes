@@ -5,8 +5,8 @@ from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 
 # -------- Configuration --------
-DATA_DIR    = '/path/to/imagenet'         # Root directory containing train/ and val/ subfolders
-OUTPUT_DIR  = '/path/to/output/parquet'   # Where to write the .parquet files
+DATA_DIR    = '/mnt/bn/liuwenzhuo-hl-data/datasets'         # Root directory containing train/ and val/ subfolders
+OUTPUT_DIR  = '~/imagenet_parquet'   # Where to write the .parquet files
 SPLITS      = ['train', 'val']
 COMPRESSION = 'snappy'
 MAX_WORKERS = 64   # Adjust based on your machine’s CPU cores
