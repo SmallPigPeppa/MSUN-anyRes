@@ -41,7 +41,7 @@ class ImageNetDataModule(LightningDataModule):
     def setup(self, stage=None):
         # Create train and val datasets
         self.train_ds = ImageNet(self.data_dir, split='train', transform=self.train_tf)
-        self.val_ds = ImageNet(self.data_dir, split='val', transform=self.val_tf)
+        self.val_ds   = ImageNet(self.data_dir, split='val',   transform=self.val_tf)
 
     def train_dataloader(self):
         """Return training DataLoader."""
