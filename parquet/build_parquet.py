@@ -39,7 +39,7 @@ def process_image(path_label):
 def build_parquet_for_split(split: str):
     split_dir = os.path.join(DATA_DIR, split)
     # Gather all JPEG/PNG files under each class folder
-    patterns = ['*.jpg', '*.jpeg', '*.png']
+    patterns = ['*.jpg', '*.jpeg', '*.png', '*.JPG', '*.JPEG', '*.PNG']
     all_paths = []
     for cls in os.listdir(split_dir):
         cls_dir = os.path.join(split_dir, cls)
