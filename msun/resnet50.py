@@ -31,8 +31,10 @@ class MultiScaleResNet(lightning.LightningModule):
         self.save_hyperparameters()
 
         # Prepare resolution groups
-        res_lists = [list(range(32, 81, 16)), list(range(96, 145, 16)),
-                     list(range(160, 209, 16)), [224]]
+        res_lists = [list(range(32, 81, 16)),
+                     list(range(96, 145, 16)),
+                     list(range(160, 209, 16)),
+                     [224]]
         base = resnet50(pretrained=False)
         self.setup_msun(res_lists, unified_res, base)
 
