@@ -6,7 +6,7 @@ from tqdm import tqdm
 import math
 
 # -------- Configuration --------
-DATA_DIR    = '/mnt/bn/liuwenzhuo-hl-data/datasets'         # Root directory containing train/ and val/ subfolders
+DATA_DIR    = '/mnt/bn/liuwenzhuo-hl-data/datasets/imagenet'         # Root directory containing train/ and val/ subfolders
 OUTPUT_DIR  = '~/imagenet_parquet'   # Where to write the .parquet files
 SPLITS      = ['train', 'val']
 COMPRESSION = 'snappy'
