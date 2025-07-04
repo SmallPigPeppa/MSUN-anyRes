@@ -5,7 +5,7 @@
 python3 msun/resnet50.py fit \
   --data.data_dir /mnt/hdfs/byte_content_security/user/liuwenzhuo/datasets/imagenet \
   --data.batch_size 256 \
-  --data.num_workers 8 \
+  --data.num_workers 32 \
   --data.img_size 224 \
   --model.num_classes 1000 \
   --model.learning_rate 1e-3 \
