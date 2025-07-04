@@ -10,7 +10,7 @@ PARQUET_DIR = '/mnt/hdfs/byte_content_security/user/liuwenzhuo/datasets/parquet/
 # PARQUET_DIR = '/mnt/bn/liuwenzhuo-lf/datasets/parquet/imagenet'
 OUTPUT_DIR = '/mnt/bn/liuwenzhuo-lf/datasets/imagenet'
 SPLITS = ['train', 'val']
-MAX_WORKERS = 64
+MAX_WORKERS =  128
 
 def write_image(record):
     """Write image bytes to disk, recreating original directory structure."""
