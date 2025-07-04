@@ -54,7 +54,7 @@ class FixedResNet(lightning.LightningModule):
         loss = self.ce_loss(logits, labels)
 
         # log training loss
-        self.log('train/ce_tot', loss, on_step=True, on_epoch=True)
+        self.log('train/ce_tot', loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
