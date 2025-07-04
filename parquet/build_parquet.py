@@ -7,7 +7,7 @@ import math
 
 # -------- Configuration --------
 DATA_DIR    = '/mnt/bn/liuwenzhuo-hl-data/datasets/imagenet'         # Root directory containing train/ and val/ subfolders
-OUTPUT_DIR  = '/root/imagenet_parquet'   # Where to write the .parquet files
+OUTPUT_DIR  = './imagenet_parquet'   # Where to write the .parquet files
 SPLITS      = ['train', 'val']
 COMPRESSION = 'snappy'
 MAX_WORKERS = 32  # Adjust based on your machine’s CPU cores
