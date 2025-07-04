@@ -19,7 +19,7 @@ class ParquetImageDataset(Dataset):
                  parquet_dir: str,
                  image_dir: str,
                  transform=None,
-                 read_workers: int = None):
+                 read_workers: int = 16):
         """
         Args:
             parquet_dir: path to folder containing *.parquet files
