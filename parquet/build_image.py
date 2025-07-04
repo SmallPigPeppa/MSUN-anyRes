@@ -6,8 +6,9 @@ from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 
 # Configuration
-PARQUET_DIR = '/mnt/hdfs/byte_content_security/user/liuwenzhuo/datasets/parquet/imagenet'
-OUTPUT_DIR = './imagenet'
+# PARQUET_DIR = '/mnt/hdfs/byte_content_security/user/liuwenzhuo/datasets/parquet/imagenet'
+PARQUET_DIR = './imagenet_parquet'
+OUTPUT_DIR = './imagenet2'
 SPLITS = ['train', 'val']
 MAX_WORKERS = 64
 
