@@ -3,19 +3,25 @@
 
 # Example: modify values as needed
 python3 msun/resnet50.py fit \
-  --data_dir /mnt/hdfs/byte_content_security/user/liuwenzhuo/datasets/imagenet \
-  --batch_size 256 \
-  --num_workers 8 \
-  --img_size 224 \
-  --num_classes 1000 \
-  --learning_rate 1e-3 \
-  --weight_decay 1e-4 \
-  --max_epochs 100 \
-  --unified_res 56 \
-  --alpha 1.0 \
-  --gpus 1 \
-  --accelerator ddp \
-  --run_name msun_experiment \
+  --data.data_dir /mnt/hdfs/byte_content_security/user/liuwenzhuo/datasets/imagenet \
+  --data.batch_size 256 \
+  --data.num_workers 8 \
+  --data.img_size 224 \
+  --model.num_classes 1000 \
+  --model.learning_rate 1e-3 \
+  --model.weight_decay 1e-4 \
+  --model.unified_res 56 \
+  --model.alpha 1.0 \
+  --trainer.max_epochs 90 \
+  --trainer.strategy ddp_find_unused_parameters_true \
+  --trainer.devices 1 \
+  --trainer.precision 16 \
+  --trainer.accelerator gpu \
+  --trainer.logger WandbLogger \
+  --trainer.logger.project msun-anyres \
+  --trainer.logger.name msun-RN50 \
+  --trainer.logger.log_model False \
+  --trainer.logger.offline False \
   --model_checkpoint.dirpath ./checkpoints \
   --model_checkpoint.monitor val/acc224 \
   --model_checkpoint.save_top_k 1 \

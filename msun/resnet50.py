@@ -163,6 +163,9 @@ class MultiScaleResNet(lightning.LightningModule):
 
 class CLI(cli.LightningCLI):
     def add_arguments_to_parser(self, parser):
+        parser.link_arguments(
+            "model.max_epochs", "trainer.max_epochs"
+        )
         parser.add_lightning_class_args(ModelCheckpoint, 'model_checkpoint')
         parser.add_lightning_class_args(LearningRateMonitor, 'lr_monitor')
 
