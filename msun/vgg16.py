@@ -17,13 +17,13 @@ class MultiScaleVGG(lightning.LightningModule):
     """Multi-scale VGG16 with SIR and explicit CE/SIR thresholds."""
 
     def __init__(
-        self,
-        num_classes: int = 1000,
-        learning_rate: float = 1e-3,
-        weight_decay: float = 1e-4,
-        max_epochs: int = 100,
-        alpha: float = 1.0,
-        pretrained: bool = False,
+            self,
+            num_classes: int = 1000,
+            learning_rate: float = 1e-3,
+            weight_decay: float = 1e-4,
+            max_epochs: int = 100,
+            alpha: float = 1.0,
+            pretrained: bool = False,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -35,7 +35,7 @@ class MultiScaleVGG(lightning.LightningModule):
                      [224]]
 
         # Base VGG16 backbone
-        base = vgg16(pretrained=self.hparams.pretrained)
+        base = vgg16(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
 
         # Build MSUN: unified head and per-scale sub-nets
         self._build_msun(res_lists, base)

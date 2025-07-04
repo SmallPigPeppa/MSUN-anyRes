@@ -36,7 +36,7 @@ class MultiScaleMobileNetV2(lightning.LightningModule):
                      [224]]
 
         # Base MobileNetV2 backbone
-        base = mobilenet_v2(pretrained=self.hparams.pretrained)
+        base = mobilenet_v2(pretrained=self.hparams.pretrained,num_classes=self.hparams.num_classes)
 
         # Build MSUN: unified head and per-scale subnets
         self._build_msun(res_lists, base)
