@@ -37,14 +37,14 @@ class MultiScaleResNet(lightning.LightningModule):
                      [224]]
 
         base = resnet50(pretrained=False, num_classes=self.hparams.num_classes)
-        self.setup_msun(res_lists, base)
+        self._build_msun(res_lists, base)
 
         # losses
         self.ce_loss = nn.CrossEntropyLoss()
         self.mse_loss = nn.MSELoss()
         self.acc = torchmetrics.Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
 
-    def setup_msun(self, res_lists: List[List[int]], base: nn.Module):
+    def _build_msun(self, res_lists: List[List[int]], base: nn.Module):
         """Build stem, unified head, and per-resolution subnets."""
         # build unified head
         u = copy.deepcopy(base)
