@@ -128,13 +128,9 @@ class MultiScaleMobileNetV2(lightning.LightningModule):
         imgs, labels = batch
         fixed = [32, 48, 96, 128, 176, 224]
         accs, sir_vals = {}, {}
-
-        # Accuracy at fixed resolutions
         for r in fixed:
             _, y = self.forward_by_res(F.interpolate(imgs, (r, r), mode='bilinear', align_corners=False))
             accs[r] = self.acc(y, labels)
-
-        # SIR values relative to largest
         ref_z, _ = self.forward_by_res(F.interpolate(imgs, (224, 224), mode='bilinear', align_corners=False))
         for r in fixed[:-1]:
             z, _ = self.forward_by_res(F.interpolate(imgs, (r, r), mode='bilinear', align_corners=False))
@@ -142,18 +138,15 @@ class MultiScaleMobileNetV2(lightning.LightningModule):
                 F.interpolate(z, self.z_size, mode='bilinear', align_corners=False),
                 F.interpolate(ref_z, self.z_size, mode='bilinear', align_corners=False)
             )
-
-        # CE on largest scale for val loss
-        loss = self.ce_loss(
-            self.unified_net(
-                F.interpolate(ref_z, (self.z_size, self.z_size), mode='bilinear', align_corners=False)
-            ), labels
-        )
-
         logs = {f'acc{r}': v for r, v in accs.items()}
         logs.update({f'sir{r}': v for r, v in sir_vals.items()})
-        logs['val/loss'] = loss
-        self.log_dict(logs, prog_bar=['val/acc224'])
+        loss = self.ce_loss(
+            self.unified_net(
+                F.interpolate(ref_z, size=self.z_size, mode='bilinear', align_corners=False)
+            ), labels
+        )
+        logs['loss'] = loss
+        self.log_dict({f'val/{k}': v for k, v in logs.items()}, prog_bar=['val/acc224'])
         return loss
 
     def configure_optimizers(self):

@@ -143,33 +143,26 @@ class MultiScaleDenseNet(lightning.LightningModule):
     def validation_step(self, batch, batch_idx):
         imgs, labels = batch
         fixed = [32, 48, 96, 128, 176, 224]
-        accs = {}
-        sir_vals = {}
+        accs, sir_vals = {}, {}
         for r in fixed:
-            _, y = self.forward_by_res(
-                F.interpolate(imgs, (r, r), mode='bilinear', align_corners=False)
-            )
+            _, y = self.forward_by_res(F.interpolate(imgs, (r, r), mode='bilinear', align_corners=False))
             accs[r] = self.acc(y, labels)
-        ref_z, _ = self.forward_by_res(
-            F.interpolate(imgs, (224, 224), mode='bilinear', align_corners=False)
-        )
+        ref_z, _ = self.forward_by_res(F.interpolate(imgs, (224, 224), mode='bilinear', align_corners=False))
         for r in fixed[:-1]:
-            z, _ = self.forward_by_res(
-                F.interpolate(imgs, (r, r), mode='bilinear', align_corners=False)
-            )
+            z, _ = self.forward_by_res(F.interpolate(imgs, (r, r), mode='bilinear', align_corners=False))
             sir_vals[r] = self.mse_loss(
                 F.interpolate(z, self.z_size, mode='bilinear', align_corners=False),
                 F.interpolate(ref_z, self.z_size, mode='bilinear', align_corners=False)
             )
-        loss = self.ce_loss(
-            self.unified_net(
-                F.interpolate(ref_z, (self.z_size, self.z_size), mode='bilinear', align_corners=False)
-            ), labels
-        )
         logs = {f'acc{r}': v for r, v in accs.items()}
         logs.update({f'sir{r}': v for r, v in sir_vals.items()})
-        logs['val/loss'] = loss
-        self.log_dict(logs, prog_bar=['val/acc224'])
+        loss = self.ce_loss(
+            self.unified_net(
+                F.interpolate(ref_z, size=self.z_size, mode='bilinear', align_corners=False)
+            ), labels
+        )
+        logs['loss'] = loss
+        self.log_dict({f'val/{k}': v for k, v in logs.items()}, prog_bar=['val/acc224'])
         return loss
 
     def configure_optimizers(self):
