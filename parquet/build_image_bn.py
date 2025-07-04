@@ -8,7 +8,7 @@ from tqdm import tqdm
 # Configuration
 # PARQUET_DIR = '/mnt/hdfs/byte_content_security/user/liuwenzhuo/datasets/parquet/imagenet'
 PARQUET_DIR = './imagenet_parquet'
-OUTPUT_DIR = '/mnt/bn/liuwenzhuo-lf/datasets/imagenet'
+OUTPUT_DIR = '/mnt/bn/liuwenzhuo-lf/datasets/imagenet2'
 SPLITS = ['train', 'val']
 MAX_WORKERS =  128
 
