@@ -10,7 +10,6 @@ python3 msun/resnet50.py fit \
   --model.num_classes 1000 \
   --model.learning_rate 1e-3 \
   --model.weight_decay 1e-4 \
-  --model.unified_res 56 \
   --model.alpha 1.0 \
   --trainer.max_epochs 80 \
   --trainer.num_nodes 2 \

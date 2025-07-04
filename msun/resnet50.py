@@ -24,7 +24,6 @@ class MultiScaleResNet(lightning.LightningModule):
             learning_rate: float = 1e-3,
             weight_decay: float = 1e-4,
             max_epochs: int = 100,
-            unified_res: int = 56,
             alpha: float = 1.0,
     ):
         super().__init__()
@@ -36,7 +35,7 @@ class MultiScaleResNet(lightning.LightningModule):
                      list(range(160, 209, 16)),
                      [224]]
         base = resnet50(pretrained=False)
-        self.setup_msun(res_lists, unified_res, base)
+        self.setup_msun(res_lists, base)
 
         # Classifier and losses
         feat_dim = base.fc.in_features
@@ -45,11 +44,10 @@ class MultiScaleResNet(lightning.LightningModule):
         self.mse_loss = nn.MSELoss()
         self.acc = torchmetrics.Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
 
-    def setup_msun(self, res_lists: List[List[int]], unified_size: int, base: nn.Module):
+    def setup_msun(self, res_lists: List[List[int]], base: nn.Module):
         """Build stem, unified head, and per-resolution subnets."""
         self.unified_net = nn.Sequential(base.layer2, base.layer3,
                                          base.layer4, nn.AdaptiveAvgPool2d(1))
-        self.unified_size = unified_size
         configs = [
             {'k': 3, 's': 1, 'p': 2, 'pool': False, 'r': res_lists[0]},
             {'k': 5, 's': 1, 'p': 2, 'pool': True, 'r': res_lists[1]},
@@ -65,6 +63,12 @@ class MultiScaleResNet(lightning.LightningModule):
                 layers.append(nn.MaxPool2d(3, 2, 1))
             layers.append(base.layer1)
             self.subnets.append(nn.Sequential(*layers))
+
+        # Automatically determine the unified spatial size from the last subnet
+        with torch.no_grad():
+            max_res = max(self.res_lists[-1])
+            dummy = torch.zeros(1, 3, max_res, max_res, device=self.device)
+            self.unified_size = self.subnets[-1](dummy).shape[-1]
 
     def encode_random(self, x: torch.Tensor) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
         zs, ys = [], []
