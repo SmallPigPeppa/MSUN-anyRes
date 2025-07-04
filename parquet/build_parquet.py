@@ -3,6 +3,7 @@ import glob
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
+import math
 
 # -------- Configuration --------
 DATA_DIR    = '/mnt/bn/liuwenzhuo-hl-data/datasets'         # Root directory containing train/ and val/ subfolders
@@ -10,7 +11,8 @@ OUTPUT_DIR  = '~/imagenet_parquet'   # Where to write the .parquet files
 SPLITS      = ['train', 'val']
 COMPRESSION = 'snappy'
 MAX_WORKERS = 64   # Adjust based on your machine’s CPU cores
-# -------------------------------
+DEBUG_LIMIT = 10000  # Max rows per Parquet file
+# --------------------------------
 
 def process_image(path_label):
     """
@@ -32,6 +34,7 @@ def process_image(path_label):
         'label': label,
         'image_bytes': img_bytes,
     }
+
 
 def build_parquet_for_split(split: str):
     split_dir = os.path.join(DATA_DIR, split)
@@ -61,16 +64,43 @@ def build_parquet_for_split(split: str):
                         desc=f"Processing {split}"):
             records.append(rec)
 
-    # Convert to DataFrame and write to Parquet
+    # Convert to DataFrame
     df = pd.DataFrame(records)
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    output_path = os.path.join(OUTPUT_DIR, f"{split}.parquet")
-    df.to_parquet(output_path, engine='pyarrow', compression=COMPRESSION, index=False)
-    print(f"[{split}] Wrote {len(df)} records to {output_path}")
+
+    # Create a subdirectory per split
+    split_out_dir = os.path.join(OUTPUT_DIR, split)
+    os.makedirs(split_out_dir, exist_ok=True)
+
+    # Calculate number of parts
+    total_rows = len(df)
+    num_parts  = math.ceil(total_rows / DEBUG_LIMIT)
+    print(f"[{split}] Splitting {total_rows} records into {num_parts} files (up to {DEBUG_LIMIT} rows each)")
+
+    # Write each chunk
+    for part in range(num_parts):
+        start = part * DEBUG_LIMIT
+        end   = min(start + DEBUG_LIMIT, total_rows)
+        chunk = df.iloc[start:end]
+
+        # Output path: OUTPUT_DIR/split/part{part}.parquet
+        output_path = os.path.join(
+            split_out_dir,
+            f"part{part}.parquet"
+        )
+
+        chunk.to_parquet(
+            output_path,
+            engine='pyarrow',
+            compression=COMPRESSION,
+            index=False
+        )
+        print(f"[{split}] Wrote rows {start}-{end-1} to {output_path}")
+
 
 def main():
     for split in SPLITS:
         build_parquet_for_split(split)
+
 
 if __name__ == '__main__':
     main()
