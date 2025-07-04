@@ -17,14 +17,15 @@ from typing import List, Tuple
 
 class MultiScaleResNet(lightning.LightningModule):
     """Multi-scale ResNet50 with SIR and explicit CE/SIR thresholds."""
+
     def __init__(
-        self,
-        num_classes: int = 1000,
-        learning_rate: float = 1e-3,
-        weight_decay: float = 1e-4,
-        max_epochs: int = 100,
-        unified_res: int = 56,
-        alpha: float = 1.0,
+            self,
+            num_classes: int = 1000,
+            learning_rate: float = 1e-3,
+            weight_decay: float = 1e-4,
+            max_epochs: int = 100,
+            unified_res: int = 56,
+            alpha: float = 1.0,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -48,18 +49,18 @@ class MultiScaleResNet(lightning.LightningModule):
                                          base.layer4, nn.AdaptiveAvgPool2d(1))
         self.unified_size = unified_size
         configs = [
-            {'k':3,'s':1,'p':2,'pool':False,'r':res_lists[0]},
-            {'k':5,'s':1,'p':2,'pool':True ,'r':res_lists[1]},
-            {'k':7,'s':2,'p':3,'pool':True ,'r':res_lists[2]},
-            {'k':7,'s':2,'p':3,'pool':True ,'r':res_lists[3]}
+            {'k': 3, 's': 1, 'p': 2, 'pool': False, 'r': res_lists[0]},
+            {'k': 5, 's': 1, 'p': 2, 'pool': True, 'r': res_lists[1]},
+            {'k': 7, 's': 2, 'p': 3, 'pool': True, 'r': res_lists[2]},
+            {'k': 7, 's': 2, 'p': 3, 'pool': True, 'r': res_lists[3]}
         ]
         self.res_lists = [c['r'] for c in configs]
         self.subnets = nn.ModuleList()
         for c in configs:
-            layers = [nn.Conv2d(3,64,c['k'],c['s'],c['p'],bias=False),
+            layers = [nn.Conv2d(3, 64, c['k'], c['s'], c['p'], bias=False),
                       nn.BatchNorm2d(64), nn.ReLU(inplace=True)]
             if c['pool']:
-                layers.append(nn.MaxPool2d(3,2,1))
+                layers.append(nn.MaxPool2d(3, 2, 1))
             layers.append(base.layer1)
             self.subnets.append(nn.Sequential(*layers))
 
@@ -67,10 +68,10 @@ class MultiScaleResNet(lightning.LightningModule):
         zs, ys = [], []
         for net, r_list in zip(self.subnets, self.res_lists):
             r = random.choice(r_list)
-            z = net(F.interpolate(x, size=(r,r), mode='bilinear', align_corners=False))
+            z = net(F.interpolate(x, size=(r, r), mode='bilinear', align_corners=False))
             zs.append(z)
             ys.append(self.unified_net(F.interpolate(z, size=self.unified_size,
-                                                    mode='bilinear', align_corners=False)).flatten(1))
+                                                     mode='bilinear', align_corners=False)).flatten(1))
         return zs, ys
 
     def encode_by_res(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -79,11 +80,11 @@ class MultiScaleResNet(lightning.LightningModule):
             if h in r_list:
                 z = net(x)
                 y = self.unified_net(F.interpolate(z, size=self.unified_size,
-                                                    mode='bilinear', align_corners=False))
+                                                   mode='bilinear', align_corners=False))
                 return z, y.flatten(1)
         z = self.subnets[-1](x)
         y = self.unified_net(F.interpolate(z, size=self.unified_size,
-                                            mode='bilinear', align_corners=False))
+                                           mode='bilinear', align_corners=False))
         return z, y.flatten(1)
 
     def training_step(self, batch, batch_idx):
@@ -124,7 +125,7 @@ class MultiScaleResNet(lightning.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         imgs, labels = batch
-        fixed = [32, 56, 96, 128, 224]
+        fixed = [32, 56, 96, 128, 176, 224]
         accs, sir_vals = {}, {}
         for r in fixed:
             _, y = self.encode_by_res(F.interpolate(imgs, (r, r), mode='bilinear', align_corners=False))
@@ -165,7 +166,7 @@ class MultiScaleResNet(lightning.LightningModule):
 class CLI(cli.LightningCLI):
     def add_arguments_to_parser(self, parser):
         parser.link_arguments(
-            "trainer.max_epochs","model.max_epochs",
+            "trainer.max_epochs", "model.max_epochs",
         )
         parser.add_lightning_class_args(ModelCheckpoint, 'model_checkpoint')
         parser.add_lightning_class_args(LearningRateMonitor, 'lr_monitor')
