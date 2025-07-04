@@ -8,7 +8,7 @@ from tqdm import tqdm
 # Configuration
 # PARQUET_DIR = '/mnt/hdfs/byte_content_security/user/liuwenzhuo/datasets/parquet/imagenet'
 PARQUET_DIR = './imagenet_parquet'
-OUTPUT_DIR = './imagenet2'
+OUTPUT_DIR = './imagenet'
 SPLITS = ['train', 'val']
 MAX_WORKERS = 64
 
@@ -41,6 +41,8 @@ def reconstruct_split(split):
 
 
 def main():
+    os.system(
+        "hdfs dfs -get hdfs://haruna/home/byte_content_security/user/liuwenzhuo/datasets/parquet/imagenet ./imagenet_parquet")
     for split in tqdm(SPLITS, desc="Splits", unit="split"):
         reconstruct_split(split)
     print("Reconstruction complete.")
