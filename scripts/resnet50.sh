@@ -3,7 +3,7 @@
 
 # Example: modify values as needed
 python3 msun/resnet50.py fit \
-  --data.data_dir /mnt/hdfs/byte_content_security/user/liuwenzhuo/datasets/parquet/imagenet \
+  --data.data_dir ./imagenet \
   --data.batch_size 256 \
   --data.num_workers 8 \
   --data.img_size 224 \
@@ -28,3 +28,4 @@ python3 msun/resnet50.py fit \
   --lr_monitor.logging_interval epoch
 
 #  --trainer.strategy ddp_find_unused_parameters_true \
+#  --data.data_dir /mnt/hdfs/byte_content_security/user/liuwenzhuo/datasets/parquet/imagenet \
