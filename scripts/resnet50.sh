@@ -2,7 +2,7 @@
 # Explicit startup script for training MultiScaleResNet via LightningCLI
 
 # Example: modify values as needed
-python3 msun/resnet50.py \
+python3 msun/resnet50.py fit \
   --data_dir /mnt/hdfs/byte_content_security/user/liuwenzhuo/datasets/imagenet \
   --batch_size 256 \
   --num_workers 8 \
