@@ -1,8 +1,9 @@
 from lightning import LightningDataModule
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from torchvision.datasets import ImageNet
 from torchvision.transforms import AutoAugment, AutoAugmentPolicy
+from torchvision.datasets import ImageFolder
+import os
 
 
 class ImageNetDataModule(LightningDataModule):
@@ -40,8 +41,8 @@ class ImageNetDataModule(LightningDataModule):
 
     def setup(self, stage=None):
         # Create train and val datasets
-        self.train_ds = ImageNet(self.data_dir, split='train', transform=self.train_tf)
-        self.val_ds   = ImageNet(self.data_dir, split='val',   transform=self.val_tf)
+        self.train_ds = ImageFolder(os.path.join(self.data_dir, "train"), transform=self.train_tf)
+        self.val_ds = ImageFolder(os.path.join(self.data_dir, "val"), transform=self.val_tf)
 
     def train_dataloader(self):
         """Return training DataLoader."""
