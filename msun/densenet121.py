@@ -17,12 +17,12 @@ class MultiScaleDenseNet(lightning.LightningModule):
     """Multi-scale DenseNet121 with SIR and explicit CE/SIR thresholds."""
 
     def __init__(
-        self,
-        num_classes: int = 1000,
-        learning_rate: float = 1e-3,
-        weight_decay: float = 1e-4,
-        max_epochs: int = 100,
-        alpha: float = 1.0,
+            self,
+            num_classes: int = 1000,
+            learning_rate: float = 1e-3,
+            weight_decay: float = 1e-4,
+            max_epochs: int = 100,
+            alpha: float = 1.0,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -55,9 +55,9 @@ class MultiScaleDenseNet(lightning.LightningModule):
         # Per-scale subnets: initial conv layers + first denseblock
         configs = [
             {'k': 3, 's': 1, 'p': 1, 'pool': False, 'r': res_lists[0]},
-            {'k': 5, 's': 1, 'p': 2, 'pool': True,  'r': res_lists[1]},
-            {'k': 7, 's': 2, 'p': 3, 'pool': True,  'r': res_lists[2]},
-            {'k': 7, 's': 2, 'p': 3, 'pool': True,  'r': res_lists[3]},
+            {'k': 5, 's': 1, 'p': 2, 'pool': True, 'r': res_lists[1]},
+            {'k': 7, 's': 2, 'p': 3, 'pool': True, 'r': res_lists[2]},
+            {'k': 7, 's': 2, 'p': 3, 'pool': True, 'r': res_lists[3]},
         ]
         self.res_lists = [c['r'] for c in configs]
         self.subnets = nn.ModuleList()
@@ -109,14 +109,14 @@ class MultiScaleDenseNet(lightning.LightningModule):
         zs, ys = self.forward_random(imgs)
 
         # Cross-entropy losses per scale
-        ce_thr = [0.] * len(ys)
+        ce_thr = [0., 0., 0., 0.]
         ce_losses = [self.ce_loss(y, labels) for y in ys]
         masked_ce = [l if l >= t else torch.zeros_like(l) for l, t in zip(ce_losses, ce_thr)]
         total_ce = sum(masked_ce)
 
         # SIR losses vs largest scale
         ref = zs[-1]
-        sir_thr = [0.] * (len(zs) - 1)
+        sir_thr = [0., 0., 0.]
         sir_losses = [
             self.mse_loss(
                 F.interpolate(z, self.z_size, mode='bilinear', align_corners=False),

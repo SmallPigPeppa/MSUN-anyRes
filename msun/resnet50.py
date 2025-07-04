@@ -31,10 +31,11 @@ class MultiScaleResNet(lightning.LightningModule):
         self.save_hyperparameters()
 
         # Prepare resolution groups
-        res_lists = [list(range(32, 81, 16)),
-                     list(range(96, 145, 16)),
+        res_lists = [list(range(32, 65, 16)),
+                     list(range(80, 145, 16)),
                      list(range(160, 209, 16)),
                      [224]]
+
         base = resnet50(pretrained=False, num_classes=self.hparams.num_classes)
         self.setup_msun(res_lists, base)
 
@@ -118,19 +119,17 @@ class MultiScaleResNet(lightning.LightningModule):
 
         # Combined loss
         loss = total_ce + self.hparams.alpha * total_sir
-
-        # Log succinctly including per-subnet accuracy
+        # log metrics
         logs = {}
-        for i, (ce, sir, y) in enumerate(zip(masked_ce, masked_sir, ys), start=1):
+        for i, (ce, sir, y) in enumerate(zip(masked_ce, masked_sir + [None], ys), start=1):
             logs[f'ce{i}'] = ce
             logs[f'sir{i}'] = sir if i < len(masked_ce) else torch.tensor(0.0, device=self.device)
-            acc_i = self.acc(y, labels)
-            logs[f'acc{i}'] = acc_i
+            logs[f'acc{i}'] = self.acc(y, labels)
         logs['ce_tot'] = total_ce
         logs['sir_tot'] = total_sir
-
         self.log_dict({f'train/{k}': v for k, v in logs.items()}, prog_bar=['train/acc1'])
         return loss
+
 
     def validation_step(self, batch, batch_idx):
         imgs, labels = batch
