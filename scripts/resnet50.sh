@@ -4,7 +4,7 @@
 # Example: modify values as needed
 python3 msun/resnet50.py fit \
   --data.data_dir /mnt/hdfs/byte_content_security/user/liuwenzhuo/datasets/parquet/imagenet \
-  --data.batch_size 128 \
+  --data.batch_size 256 \
   --data.num_workers 8 \
   --data.img_size 224 \
   --model.num_classes 1000 \
