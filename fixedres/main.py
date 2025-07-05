@@ -25,15 +25,16 @@ class FixedResNet(lightning.LightningModule):
             learning_rate: float = 1e-3,
             weight_decay: float = 1e-4,
             max_epochs: int = 100,
+            pretrained: bool = False,
     ):
         super().__init__()
         self.save_hyperparameters()
 
         name = self.hparams.model_name.lower()
         if name == 'resnet50':
-            self.base = resnet50(pretrained=False, num_classes=self.hparams.num_classes)
+            self.base = resnet50(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
         elif name == 'densenet121':
-            self.base = densenet121(pretrained=False, num_classes=self.hparams.num_classes)
+            self.base = densenet121(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
         elif name == 'vgg16':
             self.base = vgg16_bn(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
         elif name == 'mobilenetv2':
