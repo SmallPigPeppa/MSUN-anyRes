@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Explicit startup script for training MultiScaleResNet via LightningCLI
-
 # Model list
 models=("resnet50" "densenet121" "vgg16" "mobilenetv2")
 models=("mobilenetv2")
