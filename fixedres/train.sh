@@ -32,3 +32,5 @@ for model_name in "${models[@]}"; do
 
   echo "Finished training for model: $model_name"
 done
+
+
