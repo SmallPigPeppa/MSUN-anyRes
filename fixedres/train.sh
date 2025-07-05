@@ -3,7 +3,7 @@
 
 # Model list
 models=("resnet50" "densenet121" "vgg16" "mobilenetv2")
-models=("vgg16" "mobilenetv2")
+models=("mobilenetv2")
 
 for model_name in "${models[@]}"; do
   echo "Starting training for model: $model_name"
