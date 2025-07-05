@@ -12,7 +12,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from lightning_datamodule import ImageNetDataModule
 
-LAYERS = 6
+LAYERS = 10
 
 class MultiScaleMobileNetV2(lightning.LightningModule):
     """Multi-scale MobileNetV2 with SIR and explicit CE/SIR thresholds."""
