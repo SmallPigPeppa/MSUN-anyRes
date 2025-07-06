@@ -1,20 +1,21 @@
-import random
-import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-import torchmetrics
-from torchvision.models import densenet121
+from torchvision.models import resnet50
 import lightning
 from lightning.pytorch import cli
-from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
+from lightning.pytorch.callbacks.model_checkpoint import ModelCheckpoint
+from lightning.pytorch.callbacks.lr_monitor import LearningRateMonitor
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from lightning_datamodulev3 import ImageNetDataModule
+import torchmetrics
+import random
+from typing import List, Tuple
+import copy
 
 
-class MultiScaleDenseNet(lightning.LightningModule):
-    """Multi-scale DenseNet121 with SIR and explicit CE/SIR thresholds."""
+class MultiScaleResNet(lightning.LightningModule):
+    """Multi-scale ResNet50 with SIR and explicit CE/SIR thresholds."""
 
     def __init__(
             self,
@@ -27,114 +28,95 @@ class MultiScaleDenseNet(lightning.LightningModule):
         super().__init__()
         self.save_hyperparameters()
 
-        # Define resolution groups
+        # Prepare resolution groups
         res_lists = [list(range(32, 65, 16)),
                      list(range(80, 145, 16)),
                      list(range(160, 209, 16)),
                      [224]]
 
-        # Base DenseNet for shared head
-        base = densenet121(pretrained=False, num_classes=self.hparams.num_classes)
+        base = resnet50(pretrained=False, num_classes=self.hparams.num_classes)
         self._build_msun(res_lists, base)
 
-        # Losses and metrics
+        # losses
         self.ce_loss = nn.CrossEntropyLoss()
         self.mse_loss = nn.MSELoss()
         self.acc = torchmetrics.Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
 
-    def _build_msun(self, res_lists, base: nn.Module):
-        # Unified head: remove initial conv/pool and first denseblock
+    def _build_msun(self, res_lists: List[List[int]], base: nn.Module):
+        """Build stem, unified head, and per-resolution subnets."""
+        # build unified head
         u = copy.deepcopy(base)
-        u.features.conv0 = nn.Identity()
-        u.features.norm0 = nn.Identity()
-        u.features.relu0 = nn.Identity()
-        u.features.pool0 = nn.Identity()
-        u.features.denseblock1 = nn.Identity()
-        u.features.transition1 = nn.Identity()
-        # u.features.denseblock2 = nn.Identity()
-        # u.features.transition2 = nn.Identity()
+        u.conv1 = nn.Identity()
+        u.bn1 = nn.Identity()
+        u.relu = nn.Identity()
+        u.maxpool = nn.Identity()
+        u.layer1 = nn.Identity()
         self.unified_net = u
 
-        # Per-scale subnets: initial conv layers + first denseblock
+        # build subnes
         configs = [
-            {'k': 3, 's': 1, 'p': 1, 'pool': False, 'r': res_lists[0]},
+            {'k': 3, 's': 1, 'p': 2, 'pool': False, 'r': res_lists[0]},
             {'k': 5, 's': 1, 'p': 2, 'pool': True, 'r': res_lists[1]},
             {'k': 7, 's': 2, 'p': 3, 'pool': True, 'r': res_lists[2]},
-            {'k': 7, 's': 2, 'p': 3, 'pool': True, 'r': res_lists[3]},
+            {'k': 7, 's': 2, 'p': 3, 'pool': True, 'r': res_lists[3]}
         ]
         self.res_lists = [c['r'] for c in configs]
         self.subnets = nn.ModuleList()
         for c in configs:
-            layers = [
-                nn.Conv2d(3, 64, kernel_size=c['k'], stride=c['s'], padding=c['p'], bias=False),
-                nn.BatchNorm2d(64),
-                nn.ReLU(inplace=True)
-            ]
+            layers = [nn.Conv2d(3, 64, c['k'], c['s'], c['p'], bias=False),
+                      nn.BatchNorm2d(64), nn.ReLU(inplace=True)]
             if c['pool']:
-                layers.append(nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
-            # attach DenseNet first block
-            layers.append(copy.deepcopy(base.features.denseblock1))
-            layers.append(copy.deepcopy(base.features.transition1))
-            # layers.append(copy.deepcopy(base.features.denseblock2))
-            # layers.append(copy.deepcopy(base.features.transition2))
+                layers.append(nn.MaxPool2d(3, 2, 1))
+            layers.append(copy.deepcopy(base.layer1))
             self.subnets.append(nn.Sequential(*layers))
 
-        # Determine spatial size for unified head
+        # Automatically determine the unified spatial size from the last subnet
         with torch.no_grad():
-            max_r = max(self.res_lists[-1])
-            dummy = torch.zeros(1, 3, max_r, max_r, device=self.device)
-            zs = self.subnets[-1](
-                F.interpolate(dummy, size=(max_r, max_r), mode='bilinear', align_corners=False)
-            )
-            self.z_size = zs.shape[-1]
+            max_res = max(self.res_lists[-1])
+            dummy = torch.zeros(1, 3, max_res, max_res, device=self.device)
+            self.z_size = self.subnets[-1](dummy).shape[-1]
 
-    def forward_random(self, x: torch.Tensor):
+    def forward_random(self, x: torch.Tensor) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
         zs, ys = [], []
         for net, r_list in zip(self.subnets, self.res_lists):
             r = random.choice(r_list)
             z = net(F.interpolate(x, size=(r, r), mode='bilinear', align_corners=False))
-            y = self.unified_net(
-                F.interpolate(z, size=self.z_size, mode='bilinear', align_corners=False)
-            )
             zs.append(z)
-            ys.append(y)
+            ys.append(self.unified_net(F.interpolate(z, size=self.z_size,
+                                                     mode='bilinear', align_corners=False)))
         return zs, ys
 
-    def forward_by_res(self, x: torch.Tensor):
+    def forward_by_res(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         h = x.shape[2]
         for net, r_list in zip(self.subnets, self.res_lists):
             if h in r_list:
                 z = net(x)
-                y = self.unified_net(
-                    F.interpolate(z, size=self.z_size, mode='bilinear', align_corners=False)
-                )
+                y = self.unified_net(F.interpolate(z, size=self.z_size,
+                                                   mode='bilinear', align_corners=False))
                 return z, y
 
     def training_step(self, batch, batch_idx):
         imgs, labels = batch
         zs, ys = self.forward_random(imgs)
 
-        # Cross-entropy losses per scale
+        # CE losses with explicit thresholds
         ce_thr = [0., 0., 0., 0.]
         ce_losses = [self.ce_loss(y, labels) for y in ys]
         masked_ce = [l if l >= t else torch.zeros_like(l) for l, t in zip(ce_losses, ce_thr)]
         total_ce = sum(masked_ce)
 
-        # SIR losses vs largest scale
+        # SIR losses against last subnet with explicit thresholds
         ref = zs[-1]
         sir_thr = [0., 0., 0.]
-        sir_losses = [
-            self.mse_loss(
-                F.interpolate(z, self.z_size, mode='bilinear', align_corners=False),
-                F.interpolate(ref, self.z_size, mode='bilinear', align_corners=False)
-            ) for z in zs[:-1]
-        ]
+        sir_losses = [self.mse_loss(
+            F.interpolate(z, self.z_size, mode='bilinear', align_corners=False),
+            F.interpolate(ref, self.z_size, mode='bilinear', align_corners=False)
+        ) for z in zs[:-1]]
         masked_sir = [l if l >= t else torch.zeros_like(l) for l, t in zip(sir_losses, sir_thr)]
         total_sir = sum(masked_sir)
 
-        # combined loss
+        # Combined loss
         loss = total_ce + self.hparams.alpha * total_sir
-
         # log metrics
         logs = {}
         for i, (ce, sir, y) in enumerate(zip(masked_ce, masked_sir + [None], ys), start=1):
@@ -145,6 +127,7 @@ class MultiScaleDenseNet(lightning.LightningModule):
         logs['sir_tot'] = total_sir
         self.log_dict({f'train/{k}': v for k, v in logs.items()}, prog_bar=['train/acc1'])
         return loss
+
 
     def validation_step(self, batch, batch_idx):
         imgs, labels = batch
@@ -186,14 +169,16 @@ class MultiScaleDenseNet(lightning.LightningModule):
 
 class CLI(cli.LightningCLI):
     def add_arguments_to_parser(self, parser):
-        parser.link_arguments("trainer.max_epochs", "model.max_epochs")
+        parser.link_arguments(
+            "trainer.max_epochs", "model.max_epochs",
+        )
         parser.add_lightning_class_args(ModelCheckpoint, 'model_checkpoint')
         parser.add_lightning_class_args(LearningRateMonitor, 'lr_monitor')
 
 
 if __name__ == '__main__':
     CLI(
-        MultiScaleDenseNet,
+        MultiScaleResNet,
         ImageNetDataModule,
         save_config_callback=None,
         seed_everything_default=42

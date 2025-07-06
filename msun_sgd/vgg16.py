@@ -1,22 +1,20 @@
+import random
+import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
-from torchvision.models import resnet50
+import torchmetrics
+from torchvision.models import vgg16_bn
 import lightning
 from lightning.pytorch import cli
-from lightning.pytorch.callbacks.model_checkpoint import ModelCheckpoint
-from lightning.pytorch.callbacks.lr_monitor import LearningRateMonitor
+from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from lightning_datamodulev3 import ImageNetDataModule
-import torchmetrics
-import random
-from typing import List, Tuple
-import copy
+LAYERS = 24
 
 
-class MultiScaleResNet(lightning.LightningModule):
-    """Multi-scale ResNet50 with SIR and explicit CE/SIR thresholds."""
+class MultiScaleVGG(lightning.LightningModule):
+    """Multi-scale VGG16 with SIR and explicit CE/SIR thresholds."""
 
     def __init__(
             self,
@@ -25,110 +23,114 @@ class MultiScaleResNet(lightning.LightningModule):
             weight_decay: float = 1e-4,
             max_epochs: int = 100,
             alpha: float = 1.0,
+            pretrained: bool = False,
     ):
         super().__init__()
         self.save_hyperparameters()
 
-        # Prepare resolution groups
+        # Define resolution groups
         res_lists = [list(range(32, 65, 16)),
                      list(range(80, 145, 16)),
                      list(range(160, 209, 16)),
                      [224]]
 
-        base = resnet50(pretrained=False, num_classes=self.hparams.num_classes)
+        # Base VGG16 backbone
+        base = vgg16_bn(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
+
+        # Build MSUN: unified head and per-scale sub-nets
         self._build_msun(res_lists, base)
 
-        # losses
+        # Losses & metrics
         self.ce_loss = nn.CrossEntropyLoss()
         self.mse_loss = nn.MSELoss()
         self.acc = torchmetrics.Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
 
-    def _build_msun(self, res_lists: List[List[int]], base: nn.Module):
-        """Build stem, unified head, and per-resolution subnets."""
-        # build unified head
-        u = copy.deepcopy(base)
-        u.conv1 = nn.Identity()
-        u.bn1 = nn.Identity()
-        u.relu = nn.Identity()
-        u.maxpool = nn.Identity()
-        u.layer1 = nn.Identity()
-        self.unified_net = u
+    def _build_msun(self, res_lists, base: nn.Module):
+        # Store resolution lists
+        self.res_lists = res_lists
 
-        # build subnes
-        configs = [
-            {'k': 3, 's': 1, 'p': 2, 'pool': False, 'r': res_lists[0]},
-            {'k': 5, 's': 1, 'p': 2, 'pool': True, 'r': res_lists[1]},
-            {'k': 7, 's': 2, 'p': 3, 'pool': True, 'r': res_lists[2]},
-            {'k': 7, 's': 2, 'p': 3, 'pool': True, 'r': res_lists[3]}
-        ]
-        self.res_lists = [c['r'] for c in configs]
+        # Unified head: remove first LAYERS convolutional layers
+        unified = copy.deepcopy(base)
+        for i in range(LAYERS):
+            unified.features[i] = nn.Identity()
+        self.unified_net = unified
+
+        # Per-scale subnets with custom pooling modifications
         self.subnets = nn.ModuleList()
-        for c in configs:
-            layers = [nn.Conv2d(3, 64, c['k'], c['s'], c['p'], bias=False),
-                      nn.BatchNorm2d(64), nn.ReLU(inplace=True)]
-            if c['pool']:
-                layers.append(nn.MaxPool2d(3, 2, 1))
-            layers.append(copy.deepcopy(base.layer1))
+        for idx, _ in enumerate(res_lists):
+            v = copy.deepcopy(base)
+            layers = []
+            for i in range(LAYERS):
+                layer = v.features[i]
+                # First subnet: replace MaxPool at layers 6,13,23 with stride-1 pooling
+                if idx == 0 and i in [6, 13, 23]:
+                    layer = nn.MaxPool2d(kernel_size=2, stride=1)
+                # Second subnet: replace MaxPool at layer 23 with stride-1 pooling
+                elif idx == 1 and i == 23:
+                    layer = nn.MaxPool2d(kernel_size=2, stride=1)
+                layers.append(layer)
             self.subnets.append(nn.Sequential(*layers))
 
-        # Automatically determine the unified spatial size from the last subnet
+        # Determine feature-map spatial size after subnets
         with torch.no_grad():
-            max_res = max(self.res_lists[-1])
-            dummy = torch.zeros(1, 3, max_res, max_res, device=self.device)
-            self.z_size = self.subnets[-1](dummy).shape[-1]
+            max_r = max(res_lists[-1])
+            dummy = torch.zeros(1, 3, max_r, max_r, device=self.device)
+            out_feat = self.subnets[-1](F.interpolate(dummy, size=(max_r, max_r), mode='bilinear', align_corners=False))
+            self.z_size = out_feat.shape[-1]
 
-    def forward_random(self, x: torch.Tensor) -> Tuple[List[torch.Tensor], List[torch.Tensor]]:
+    def forward_random(self, x: torch.Tensor):
         zs, ys = [], []
         for net, r_list in zip(self.subnets, self.res_lists):
             r = random.choice(r_list)
             z = net(F.interpolate(x, size=(r, r), mode='bilinear', align_corners=False))
+            y = self.unified_net(
+                F.interpolate(z, size=(self.z_size, self.z_size), mode='bilinear', align_corners=False)
+            )
             zs.append(z)
-            ys.append(self.unified_net(F.interpolate(z, size=self.z_size,
-                                                     mode='bilinear', align_corners=False)))
+            ys.append(y)
         return zs, ys
 
-    def forward_by_res(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward_by_res(self, x: torch.Tensor):
         h = x.shape[2]
         for net, r_list in zip(self.subnets, self.res_lists):
             if h in r_list:
                 z = net(x)
-                y = self.unified_net(F.interpolate(z, size=self.z_size,
-                                                   mode='bilinear', align_corners=False))
+                y = self.unified_net(
+                    F.interpolate(z, size=(self.z_size, self.z_size), mode='bilinear', align_corners=False)
+                )
                 return z, y
 
     def training_step(self, batch, batch_idx):
         imgs, labels = batch
         zs, ys = self.forward_random(imgs)
 
-        # CE losses with explicit thresholds
-        ce_thr = [0., 0., 0., 0.]
+        # Cross-entropy losses
         ce_losses = [self.ce_loss(y, labels) for y in ys]
-        masked_ce = [l if l >= t else torch.zeros_like(l) for l, t in zip(ce_losses, ce_thr)]
-        total_ce = sum(masked_ce)
+        total_ce = sum(ce_losses)
 
-        # SIR losses against last subnet with explicit thresholds
+        # SIR losses vs largest scale
         ref = zs[-1]
-        sir_thr = [0., 0., 0.]
-        sir_losses = [self.mse_loss(
-            F.interpolate(z, self.z_size, mode='bilinear', align_corners=False),
-            F.interpolate(ref, self.z_size, mode='bilinear', align_corners=False)
-        ) for z in zs[:-1]]
-        masked_sir = [l if l >= t else torch.zeros_like(l) for l, t in zip(sir_losses, sir_thr)]
-        total_sir = sum(masked_sir)
+        sir_losses = [
+            self.mse_loss(
+                F.interpolate(z, self.z_size, mode='bilinear', align_corners=False),
+                F.interpolate(ref, self.z_size, mode='bilinear', align_corners=False)
+            ) for z in zs[:-1]
+        ]
+        total_sir = sum(sir_losses)
 
         # Combined loss
         loss = total_ce + self.hparams.alpha * total_sir
-        # log metrics
+
+        # Logging metrics
         logs = {}
-        for i, (ce, sir, y) in enumerate(zip(masked_ce, masked_sir + [None], ys), start=1):
+        for i, (ce, sir, y) in enumerate(zip(ce_losses, sir_losses + [None], ys), start=1):
             logs[f'ce{i}'] = ce
-            logs[f'sir{i}'] = sir if i < len(masked_ce) else torch.tensor(0.0, device=self.device)
+            logs[f'sir{i}'] = sir if sir is not None else torch.tensor(0.0, device=self.device)
             logs[f'acc{i}'] = self.acc(y, labels)
         logs['ce_tot'] = total_ce
         logs['sir_tot'] = total_sir
         self.log_dict({f'train/{k}': v for k, v in logs.items()}, prog_bar=['train/acc1'])
         return loss
-
 
     def validation_step(self, batch, batch_idx):
         imgs, labels = batch
@@ -170,16 +172,14 @@ class MultiScaleResNet(lightning.LightningModule):
 
 class CLI(cli.LightningCLI):
     def add_arguments_to_parser(self, parser):
-        parser.link_arguments(
-            "trainer.max_epochs", "model.max_epochs",
-        )
+        parser.link_arguments("trainer.max_epochs", "model.max_epochs")
         parser.add_lightning_class_args(ModelCheckpoint, 'model_checkpoint')
         parser.add_lightning_class_args(LearningRateMonitor, 'lr_monitor')
 
 
 if __name__ == '__main__':
     CLI(
-        MultiScaleResNet,
+        MultiScaleVGG,
         ImageNetDataModule,
         save_config_callback=None,
         seed_everything_default=42

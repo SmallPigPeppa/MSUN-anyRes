@@ -3,28 +3,28 @@ import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
 import torchmetrics
-from torchvision.models import vgg16_bn
+from torchvision.models import mobilenet_v2
 import lightning
 from lightning.pytorch import cli
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from lightning_datamodulev3 import ImageNetDataModule
-LAYERS = 24
+from torchvision.ops import Conv2dNormActivation
 
+LAYERS = 10
 
-class MultiScaleVGG(lightning.LightningModule):
-    """Multi-scale VGG16 with SIR and explicit CE/SIR thresholds."""
+class MultiScaleMobileNetV2(lightning.LightningModule):
+    """Multi-scale MobileNetV2 with SIR and explicit CE/SIR thresholds."""
 
     def __init__(
-            self,
-            num_classes: int = 1000,
-            learning_rate: float = 1e-3,
-            weight_decay: float = 1e-4,
-            max_epochs: int = 100,
-            alpha: float = 1.0,
-            pretrained: bool = False,
+        self,
+        num_classes: int = 1000,
+        learning_rate: float = 1e-3,
+        weight_decay: float = 1e-4,
+        max_epochs: int = 100,
+        alpha: float = 1.0,
+        pretrained: bool = False,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -35,10 +35,10 @@ class MultiScaleVGG(lightning.LightningModule):
                      list(range(160, 209, 16)),
                      [224]]
 
-        # Base VGG16 backbone
-        base = vgg16_bn(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
+        # Base MobileNetV2 backbone
+        base = mobilenet_v2(pretrained=self.hparams.pretrained,num_classes=self.hparams.num_classes)
 
-        # Build MSUN: unified head and per-scale sub-nets
+        # Build MSUN: unified head and per-scale subnets
         self._build_msun(res_lists, base)
 
         # Losses & metrics
@@ -46,38 +46,39 @@ class MultiScaleVGG(lightning.LightningModule):
         self.mse_loss = nn.MSELoss()
         self.acc = torchmetrics.Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
 
-    def _build_msun(self, res_lists, base: nn.Module):
-        # Store resolution lists
+    def _build_msun(self, res_lists, base):
         self.res_lists = res_lists
-
-        # Unified head: remove first LAYERS convolutional layers
-        unified = copy.deepcopy(base)
+        # unified head: strip shared blocks
+        u = copy.deepcopy(base)
         for i in range(LAYERS):
-            unified.features[i] = nn.Identity()
-        self.unified_net = unified
+            u.features[i] = nn.Identity()
+        self.unified_net = u
 
-        # Per-scale subnets with custom pooling modifications
+        # subnets for each scale
         self.subnets = nn.ModuleList()
-        for idx, _ in enumerate(res_lists):
-            v = copy.deepcopy(base)
-            layers = []
-            for i in range(LAYERS):
-                layer = v.features[i]
-                # First subnet: replace MaxPool at layers 6,13,23 with stride-1 pooling
-                if idx == 0 and i in [6, 13, 23]:
-                    layer = nn.MaxPool2d(kernel_size=2, stride=1)
-                # Second subnet: replace MaxPool at layer 23 with stride-1 pooling
-                elif idx == 1 and i == 23:
-                    layer = nn.MaxPool2d(kernel_size=2, stride=1)
-                layers.append(layer)
+        for idx in range(len(res_lists)):
+            v = mobilenet_v2(pretrained=self.hparams.pretrained)
+            layers = [v.features[i] for i in range(LAYERS)]
+            if idx == 0:
+                # first subnet: 1x1 conv and custom depthwise blocks
+                layers[0] = Conv2dNormActivation(3, 32, kernel_size=1, stride=1,
+                    norm_layer=nn.BatchNorm2d, activation_layer=nn.ReLU6)
+                layers[2].conv[1] = Conv2dNormActivation(96, 96, kernel_size=3, stride=1, groups=96,
+                    norm_layer=nn.BatchNorm2d, activation_layer=nn.ReLU6)
+                layers[4].conv[1] = Conv2dNormActivation(144, 144, kernel_size=3, stride=1, groups=144,
+                    norm_layer=nn.BatchNorm2d, activation_layer=nn.ReLU6)
+            elif idx == 1:
+                # second subnet: 3x3 first conv
+                layers[0] = Conv2dNormActivation(3, 32, kernel_size=3, stride=1,
+                    norm_layer=nn.BatchNorm2d, activation_layer=nn.ReLU6)
             self.subnets.append(nn.Sequential(*layers))
 
         # Determine feature-map spatial size after subnets
         with torch.no_grad():
             max_r = max(res_lists[-1])
             dummy = torch.zeros(1, 3, max_r, max_r, device=self.device)
-            out_feat = self.subnets[-1](F.interpolate(dummy, size=(max_r, max_r), mode='bilinear', align_corners=False))
-            self.z_size = out_feat.shape[-1]
+            z = self.subnets[-1](F.interpolate(dummy, size=(max_r, max_r), mode='bilinear', align_corners=False))
+            self.z_size = z.shape[-1]
 
     def forward_random(self, x: torch.Tensor):
         zs, ys = [], []
@@ -180,7 +181,7 @@ class CLI(cli.LightningCLI):
 
 if __name__ == '__main__':
     CLI(
-        MultiScaleVGG,
+        MultiScaleMobileNetV2,
         ImageNetDataModule,
         save_config_callback=None,
         seed_everything_default=42

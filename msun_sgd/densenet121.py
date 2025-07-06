@@ -3,29 +3,25 @@ import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
 import torchmetrics
-from torchvision.models import mobilenet_v2
+from torchvision.models import densenet121
 import lightning
 from lightning.pytorch import cli
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from lightning_datamodulev3 import ImageNetDataModule
-from torchvision.ops import Conv2dNormActivation
 
-LAYERS = 10
 
-class MultiScaleMobileNetV2(lightning.LightningModule):
-    """Multi-scale MobileNetV2 with SIR and explicit CE/SIR thresholds."""
+class MultiScaleDenseNet(lightning.LightningModule):
+    """Multi-scale DenseNet121 with SIR and explicit CE/SIR thresholds."""
 
     def __init__(
-        self,
-        num_classes: int = 1000,
-        learning_rate: float = 1e-3,
-        weight_decay: float = 1e-4,
-        max_epochs: int = 100,
-        alpha: float = 1.0,
-        pretrained: bool = False,
+            self,
+            num_classes: int = 1000,
+            learning_rate: float = 1e-3,
+            weight_decay: float = 1e-4,
+            max_epochs: int = 100,
+            alpha: float = 1.0,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -36,50 +32,60 @@ class MultiScaleMobileNetV2(lightning.LightningModule):
                      list(range(160, 209, 16)),
                      [224]]
 
-        # Base MobileNetV2 backbone
-        base = mobilenet_v2(pretrained=self.hparams.pretrained,num_classes=self.hparams.num_classes)
-
-        # Build MSUN: unified head and per-scale subnets
+        # Base DenseNet for shared head
+        base = densenet121(pretrained=False, num_classes=self.hparams.num_classes)
         self._build_msun(res_lists, base)
 
-        # Losses & metrics
+        # Losses and metrics
         self.ce_loss = nn.CrossEntropyLoss()
         self.mse_loss = nn.MSELoss()
         self.acc = torchmetrics.Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
 
-    def _build_msun(self, res_lists, base):
-        self.res_lists = res_lists
-        # unified head: strip shared blocks
+    def _build_msun(self, res_lists, base: nn.Module):
+        # Unified head: remove initial conv/pool and first denseblock
         u = copy.deepcopy(base)
-        for i in range(LAYERS):
-            u.features[i] = nn.Identity()
+        u.features.conv0 = nn.Identity()
+        u.features.norm0 = nn.Identity()
+        u.features.relu0 = nn.Identity()
+        u.features.pool0 = nn.Identity()
+        u.features.denseblock1 = nn.Identity()
+        u.features.transition1 = nn.Identity()
+        # u.features.denseblock2 = nn.Identity()
+        # u.features.transition2 = nn.Identity()
         self.unified_net = u
 
-        # subnets for each scale
+        # Per-scale subnets: initial conv layers + first denseblock
+        configs = [
+            {'k': 3, 's': 1, 'p': 1, 'pool': False, 'r': res_lists[0]},
+            {'k': 5, 's': 1, 'p': 2, 'pool': True, 'r': res_lists[1]},
+            {'k': 7, 's': 2, 'p': 3, 'pool': True, 'r': res_lists[2]},
+            {'k': 7, 's': 2, 'p': 3, 'pool': True, 'r': res_lists[3]},
+        ]
+        self.res_lists = [c['r'] for c in configs]
         self.subnets = nn.ModuleList()
-        for idx in range(len(res_lists)):
-            v = mobilenet_v2(pretrained=self.hparams.pretrained)
-            layers = [v.features[i] for i in range(LAYERS)]
-            if idx == 0:
-                # first subnet: 1x1 conv and custom depthwise blocks
-                layers[0] = Conv2dNormActivation(3, 32, kernel_size=1, stride=1,
-                    norm_layer=nn.BatchNorm2d, activation_layer=nn.ReLU6)
-                layers[2].conv[1] = Conv2dNormActivation(96, 96, kernel_size=3, stride=1, groups=96,
-                    norm_layer=nn.BatchNorm2d, activation_layer=nn.ReLU6)
-                layers[4].conv[1] = Conv2dNormActivation(144, 144, kernel_size=3, stride=1, groups=144,
-                    norm_layer=nn.BatchNorm2d, activation_layer=nn.ReLU6)
-            elif idx == 1:
-                # second subnet: 3x3 first conv
-                layers[0] = Conv2dNormActivation(3, 32, kernel_size=3, stride=1,
-                    norm_layer=nn.BatchNorm2d, activation_layer=nn.ReLU6)
+        for c in configs:
+            layers = [
+                nn.Conv2d(3, 64, kernel_size=c['k'], stride=c['s'], padding=c['p'], bias=False),
+                nn.BatchNorm2d(64),
+                nn.ReLU(inplace=True)
+            ]
+            if c['pool']:
+                layers.append(nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
+            # attach DenseNet first block
+            layers.append(copy.deepcopy(base.features.denseblock1))
+            layers.append(copy.deepcopy(base.features.transition1))
+            # layers.append(copy.deepcopy(base.features.denseblock2))
+            # layers.append(copy.deepcopy(base.features.transition2))
             self.subnets.append(nn.Sequential(*layers))
 
-        # Determine feature-map spatial size after subnets
+        # Determine spatial size for unified head
         with torch.no_grad():
-            max_r = max(res_lists[-1])
+            max_r = max(self.res_lists[-1])
             dummy = torch.zeros(1, 3, max_r, max_r, device=self.device)
-            z = self.subnets[-1](F.interpolate(dummy, size=(max_r, max_r), mode='bilinear', align_corners=False))
-            self.z_size = z.shape[-1]
+            zs = self.subnets[-1](
+                F.interpolate(dummy, size=(max_r, max_r), mode='bilinear', align_corners=False)
+            )
+            self.z_size = zs.shape[-1]
 
     def forward_random(self, x: torch.Tensor):
         zs, ys = [], []
@@ -87,7 +93,7 @@ class MultiScaleMobileNetV2(lightning.LightningModule):
             r = random.choice(r_list)
             z = net(F.interpolate(x, size=(r, r), mode='bilinear', align_corners=False))
             y = self.unified_net(
-                F.interpolate(z, size=(self.z_size, self.z_size), mode='bilinear', align_corners=False)
+                F.interpolate(z, size=self.z_size, mode='bilinear', align_corners=False)
             )
             zs.append(z)
             ys.append(y)
@@ -99,7 +105,7 @@ class MultiScaleMobileNetV2(lightning.LightningModule):
             if h in r_list:
                 z = net(x)
                 y = self.unified_net(
-                    F.interpolate(z, size=(self.z_size, self.z_size), mode='bilinear', align_corners=False)
+                    F.interpolate(z, size=self.z_size, mode='bilinear', align_corners=False)
                 )
                 return z, y
 
@@ -107,28 +113,32 @@ class MultiScaleMobileNetV2(lightning.LightningModule):
         imgs, labels = batch
         zs, ys = self.forward_random(imgs)
 
-        # Cross-entropy losses
+        # Cross-entropy losses per scale
+        ce_thr = [0., 0., 0., 0.]
         ce_losses = [self.ce_loss(y, labels) for y in ys]
-        total_ce = sum(ce_losses)
+        masked_ce = [l if l >= t else torch.zeros_like(l) for l, t in zip(ce_losses, ce_thr)]
+        total_ce = sum(masked_ce)
 
         # SIR losses vs largest scale
         ref = zs[-1]
+        sir_thr = [0., 0., 0.]
         sir_losses = [
             self.mse_loss(
                 F.interpolate(z, self.z_size, mode='bilinear', align_corners=False),
                 F.interpolate(ref, self.z_size, mode='bilinear', align_corners=False)
             ) for z in zs[:-1]
         ]
-        total_sir = sum(sir_losses)
+        masked_sir = [l if l >= t else torch.zeros_like(l) for l, t in zip(sir_losses, sir_thr)]
+        total_sir = sum(masked_sir)
 
-        # Combined loss
+        # combined loss
         loss = total_ce + self.hparams.alpha * total_sir
 
-        # Logging metrics
+        # log metrics
         logs = {}
-        for i, (ce, sir, y) in enumerate(zip(ce_losses, sir_losses + [None], ys), start=1):
+        for i, (ce, sir, y) in enumerate(zip(masked_ce, masked_sir + [None], ys), start=1):
             logs[f'ce{i}'] = ce
-            logs[f'sir{i}'] = sir if sir is not None else torch.tensor(0.0, device=self.device)
+            logs[f'sir{i}'] = sir if i < len(masked_ce) else torch.tensor(0.0, device=self.device)
             logs[f'acc{i}'] = self.acc(y, labels)
         logs['ce_tot'] = total_ce
         logs['sir_tot'] = total_sir
@@ -182,7 +192,7 @@ class CLI(cli.LightningCLI):
 
 if __name__ == '__main__':
     CLI(
-        MultiScaleMobileNetV2,
+        MultiScaleDenseNet,
         ImageNetDataModule,
         save_config_callback=None,
         seed_everything_default=42
