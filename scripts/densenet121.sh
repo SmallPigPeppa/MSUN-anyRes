@@ -25,3 +25,4 @@ python3 msun/densenet121.py fit \
   --model_checkpoint.save_last True \
   --lr_monitor.logging_interval epoch
 
+
