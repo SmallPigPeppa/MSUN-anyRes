@@ -16,6 +16,7 @@ for model_name in "${models[@]}"; do
     --model.learning_rate 0.5 \
     --model.weight_decay 2e-5 \
     --model.model_name "$model_name" \
+    --trainer.gradient_clip_val 1.0 \
     --trainer.max_epochs 80 \
     --trainer.precision bf16-mixed \
     --trainer.accelerator gpu \
