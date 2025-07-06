@@ -9,7 +9,7 @@ python3 msun/vgg16.py fit \
   --data.img_size 224 \
   --model.num_classes 1000 \
   --model.learning_rate 1e-3 \
-  --model.weight_decay 1e-4 \
+  --model.weight_decay 2e-5 \
   --model.alpha 1.0 \
   --trainer.max_epochs 80 \
   --trainer.precision bf16-mixed \

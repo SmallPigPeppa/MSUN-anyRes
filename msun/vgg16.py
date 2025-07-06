@@ -13,6 +13,7 @@ from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from lightning_datamodule import ImageNetDataModule
 LAYERS = 24
 
+
 class MultiScaleVGG(lightning.LightningModule):
     """Multi-scale VGG16 with SIR and explicit CE/SIR thresholds."""
 
