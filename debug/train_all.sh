@@ -33,7 +33,7 @@ for model in "${models[@]}"; do
     --trainer.logger.name "debug-fixedres-$model" \
     --trainer.logger.log_model False \
     --trainer.logger.offline False \
-    --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-lf/ckpt/msun-anyres/fixedres/$model" \
+    --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-lf/ckpt/msun/fixedres/$model" \
     --model_checkpoint.monitor val/acc224 \
     --model_checkpoint.save_top_k 1 \
     --model_checkpoint.save_last True \

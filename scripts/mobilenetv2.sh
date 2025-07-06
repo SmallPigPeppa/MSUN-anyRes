@@ -19,7 +19,7 @@ python3 msun/mobilenetv2.py fit \
   --trainer.logger.name msun-mobilenetv2 \
   --trainer.logger.log_model False \
   --trainer.logger.offline False \
-  --model_checkpoint.dirpath /mnt/bn/liuwenzhuo-lf/ckpt/msun-anyres/mobilenetv2 \
+  --model_checkpoint.dirpath /mnt/bn/liuwenzhuo-lf/ckpt/msun/msun/mobilenetv2 \
   --model_checkpoint.monitor val/acc224 \
   --model_checkpoint.save_top_k 1 \
   --model_checkpoint.save_last True \

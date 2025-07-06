@@ -19,7 +19,7 @@ python3 msun/vgg16.py fit \
   --trainer.logger.name msun-vgg16 \
   --trainer.logger.log_model False \
   --trainer.logger.offline False \
-  --model_checkpoint.dirpath /mnt/bn/liuwenzhuo-lf/ckpt/msun-anyres/vgg16 \
+  --model_checkpoint.dirpath /mnt/bn/liuwenzhuo-lf/ckpt/msun/msun/vgg16 \
   --model_checkpoint.monitor val/acc224 \
   --model_checkpoint.save_top_k 1 \
   --model_checkpoint.save_last True \
