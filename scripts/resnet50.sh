@@ -24,6 +24,3 @@ python3 msun_updated/resnet50.py fit \
   --model_checkpoint.save_top_k 1 \
   --model_checkpoint.save_last True \
   --lr_monitor.logging_interval epoch
-
-#  --trainer.strategy ddp_find_unused_parameters_true \
-#  --data.data_dir /mnt/hdfs/byte_content_security/user/liuwenzhuo/datasets/parquet/imagenet \
