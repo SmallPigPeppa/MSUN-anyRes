@@ -51,24 +51,33 @@ class MultiScaleVGG(lightning.LightningModule):
         self.res_lists = res_lists
 
         # Unified head: remove first LAYERS convolutional layers
-        u = copy.deepcopy(base)
+        unified = copy.deepcopy(base)
         for i in range(LAYERS):
-            u.features[i] = nn.Identity()
-        self.unified_net = u
+            unified.features[i] = nn.Identity()
+        self.unified_net = unified
 
-        # Per-scale subnets: keep first LAYERS convolutional layers
+        # Per-scale subnets with custom pooling modifications
         self.subnets = nn.ModuleList()
-        for _ in res_lists:
+        for idx, _ in enumerate(res_lists):
             v = copy.deepcopy(base)
-            layers = [v.features[i] for i in range(LAYERS)]
+            layers = []
+            for i in range(LAYERS):
+                layer = v.features[i]
+                # First subnet: replace MaxPool at layers 6,13,23 with stride-1 pooling
+                if idx == 0 and i in [6, 13, 23]:
+                    layer = nn.MaxPool2d(kernel_size=2, stride=1)
+                # Second subnet: replace MaxPool at layer 23 with stride-1 pooling
+                elif idx == 1 and i == 23:
+                    layer = nn.MaxPool2d(kernel_size=2, stride=1)
+                layers.append(layer)
             self.subnets.append(nn.Sequential(*layers))
 
         # Determine feature-map spatial size after subnets
         with torch.no_grad():
             max_r = max(res_lists[-1])
             dummy = torch.zeros(1, 3, max_r, max_r, device=self.device)
-            z = self.subnets[-1](F.interpolate(dummy, size=(max_r, max_r), mode='bilinear', align_corners=False))
-            self.z_size = z.shape[-1]
+            out_feat = self.subnets[-1](F.interpolate(dummy, size=(max_r, max_r), mode='bilinear', align_corners=False))
+            self.z_size = out_feat.shape[-1]
 
     def forward_random(self, x: torch.Tensor):
         zs, ys = [], []

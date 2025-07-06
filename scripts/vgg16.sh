@@ -2,7 +2,7 @@
 # Explicit startup script for training MultiScaleResNet via LightningCLI
 
 # Example: modify values as needed
-python3 msun/vgg16v2.py fit \
+python3 msun/vgg16.py fit \
   --data.data_dir ./imagenet \
   --data.batch_size 256 \
   --data.num_workers 16 \
@@ -16,7 +16,7 @@ python3 msun/vgg16v2.py fit \
   --trainer.accelerator gpu \
   --trainer.logger WandbLogger \
   --trainer.logger.project msun-anyres \
-  --trainer.logger.name msun-vgg16v2 \
+  --trainer.logger.name msun-vgg16 \
   --trainer.logger.log_model False \
   --trainer.logger.offline False \
   --model_checkpoint.dirpath /mnt/bn/liuwenzhuo-lf/ckpt/msun-anyres/vgg16 \
