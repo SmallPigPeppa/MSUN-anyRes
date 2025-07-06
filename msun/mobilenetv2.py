@@ -11,6 +11,7 @@ from lightning.pytorch import cli
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from lightning_datamodule import ImageNetDataModule
+from torchvision.ops import Conv2dNormActivation
 
 LAYERS = 10
 
@@ -46,21 +47,31 @@ class MultiScaleMobileNetV2(lightning.LightningModule):
         self.mse_loss = nn.MSELoss()
         self.acc = torchmetrics.Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
 
-    def _build_msun(self, res_lists, base: nn.Module):
-        # Store resolution lists
+    def _build_msun(self, res_lists, base):
         self.res_lists = res_lists
-
-        # Unified head: remove first LAYERS feature blocks
+        # unified head: strip shared blocks
         u = copy.deepcopy(base)
         for i in range(LAYERS):
             u.features[i] = nn.Identity()
         self.unified_net = u
 
-        # Per-scale subnets: keep first LAYERS feature blocks
+        # subnets for each scale
         self.subnets = nn.ModuleList()
-        for _ in res_lists:
-            v = copy.deepcopy(base)
+        for idx in range(len(res_lists)):
+            v = mobilenet_v2(pretrained=self.hparams.pretrained)
             layers = [v.features[i] for i in range(LAYERS)]
+            if idx == 0:
+                # first subnet: 1x1 conv and custom depthwise blocks
+                layers[0] = Conv2dNormActivation(3, 32, kernel_size=1, stride=1,
+                    norm_layer=nn.BatchNorm2d, activation_layer=nn.ReLU6)
+                layers[2].conv[1] = Conv2dNormActivation(96, 96, kernel_size=3, stride=1, groups=96,
+                    norm_layer=nn.BatchNorm2d, activation_layer=nn.ReLU6)
+                layers[4].conv[1] = Conv2dNormActivation(144, 144, kernel_size=3, stride=1, groups=144,
+                    norm_layer=nn.BatchNorm2d, activation_layer=nn.ReLU6)
+            elif idx == 1:
+                # second subnet: 3x3 first conv
+                layers[0] = Conv2dNormActivation(3, 32, kernel_size=3, stride=1,
+                    norm_layer=nn.BatchNorm2d, activation_layer=nn.ReLU6)
             self.subnets.append(nn.Sequential(*layers))
 
         # Determine feature-map spatial size after subnets
