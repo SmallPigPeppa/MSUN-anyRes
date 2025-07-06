@@ -12,7 +12,7 @@ python3 msun_sgd/densenet121.py fit \
   --model.weight_decay 2e-5 \
   --model.alpha 1.0 \
   --trainer.max_epochs 90 \
-  --trainer.precision bf16-mixed \
+  --trainer.precision 16 \
   --trainer.accelerator gpu \
   --trainer.logger WandbLogger \
   --trainer.logger.project msun-anyres \
