@@ -2,7 +2,7 @@
 # Explicit startup script for training MultiScaleResNet via LightningCLI
 
 # Example: modify values as needed
-python3 msun/vgg16.py fit \
+python3 msun_updated/vgg16.py fit \
   --data.data_dir ./imagenet \
   --data.batch_size 32 \
   --data.num_workers 16 \
