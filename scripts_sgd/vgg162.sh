@@ -25,3 +25,4 @@ python3 msun/vgg16.py fit \
   --model_checkpoint.save_last True \
   --lr_monitor.logging_interval epoch
 
+
