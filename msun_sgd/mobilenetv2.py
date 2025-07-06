@@ -75,10 +75,9 @@ class MultiScaleMobileNetV2(lightning.LightningModule):
 
         # Determine feature-map spatial size after subnets
         with torch.no_grad():
-            max_r = max(res_lists[-1])
-            dummy = torch.zeros(1, 3, max_r, max_r, device=self.device)
-            z = self.subnets[-1](F.interpolate(dummy, size=(max_r, max_r), mode='bilinear', align_corners=False))
-            self.z_size = z.shape[-1]
+            max_res = max(self.res_lists[-1])
+            dummy = torch.zeros(1, 3, max_res, max_res, device=self.device)
+            self.z_size = self.subnets[-1](dummy).shape[-1]
 
     def forward_random(self, x: torch.Tensor):
         zs, ys = [], []
