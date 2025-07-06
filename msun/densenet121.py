@@ -51,6 +51,8 @@ class MultiScaleDenseNet(lightning.LightningModule):
         u.features.pool0 = nn.Identity()
         u.features.denseblock1 = nn.Identity()
         u.features.transition1 = nn.Identity()
+        u.features.denseblock2 = nn.Identity()
+        u.features.transition2 = nn.Identity()
         self.unified_net = u
 
         # Per-scale subnets: initial conv layers + first denseblock
@@ -73,6 +75,8 @@ class MultiScaleDenseNet(lightning.LightningModule):
             # attach DenseNet first block
             layers.append(copy.deepcopy(base.features.denseblock1))
             layers.append(copy.deepcopy(base.features.transition1))
+            layers.append(copy.deepcopy(base.features.denseblock2))
+            layers.append(copy.deepcopy(base.features.transition2))
             self.subnets.append(nn.Sequential(*layers))
 
         # Determine spatial size for unified head
