@@ -16,7 +16,7 @@ for model_name in "${models[@]}"; do
     --model.learning_rate 1e-3 \
     --model.weight_decay 1e-4 \
     --model.model_name "$model_name" \
-    --trainer.max_epochs 80 \
+    --trainer.max_epochs 90 \
     --trainer.precision 16 \
     --trainer.accelerator npu \
     --trainer.logger WandbLogger \

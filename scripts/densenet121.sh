@@ -11,7 +11,7 @@ python3 msun/densenet121.py fit \
   --model.learning_rate 1e-3 \
   --model.weight_decay 1e-4 \
   --model.alpha 1.0 \
-  --trainer.max_epochs 80 \
+  --trainer.max_epochs 90 \
   --trainer.precision bf16-mixed \
   --trainer.accelerator gpu \
   --trainer.logger WandbLogger \
