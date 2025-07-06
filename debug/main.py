@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
 from torchvision.models import resnet50, densenet121, vgg16_bn, mobilenet_v2
 import lightning
 from lightning.pytorch import cli
@@ -10,9 +9,7 @@ from lightning.pytorch.callbacks.lr_monitor import LearningRateMonitor
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from lightning_datamodule import ImageNetDataModule
 import torchmetrics
-import random
-from typing import List, Tuple
-import copy
+from typing import Tuple
 
 
 class FixedResNet(lightning.LightningModule):
