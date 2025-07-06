@@ -12,7 +12,7 @@ python3 msun/resnet50.py fit \
   --model.weight_decay 1e-4 \
   --model.alpha 1.0 \
   --trainer.max_epochs 80 \
-  --trainer.precision bf16-mixed \
+  --trainer.precision 16 \
   --trainer.accelerator npu \
   --trainer.logger WandbLogger \
   --trainer.logger.project msun-anyres \
