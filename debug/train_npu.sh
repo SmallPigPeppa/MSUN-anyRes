@@ -9,7 +9,7 @@ for model_name in "${models[@]}"; do
 
   python3 fixedres/main.py fit \
     --data.data_dir ./imagenet \
-    --data.batch_size 64 \
+    --data.batch_size 256 \
     --data.num_workers 8 \
     --data.img_size 224 \
     --model.num_classes 1000 \
