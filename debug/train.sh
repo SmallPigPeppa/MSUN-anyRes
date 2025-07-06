@@ -7,7 +7,7 @@ models=("resnet50")
 for model_name in "${models[@]}"; do
   echo "Starting training for model: $model_name"
 
-  python3 fixedres/main.py fit \
+  python3 debug/main.py fit \
     --data.data_dir ./imagenet \
     --data.batch_size 128 \
     --data.num_workers 16 \

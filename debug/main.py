@@ -8,7 +8,7 @@ from lightning.pytorch import cli
 from lightning.pytorch.callbacks.model_checkpoint import ModelCheckpoint
 from lightning.pytorch.callbacks.lr_monitor import LearningRateMonitor
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
-from lightning_datamodulev2 import ImageNetDataModule
+from lightning_datamodule import ImageNetDataModule
 import torchmetrics
 import random
 from typing import List, Tuple
