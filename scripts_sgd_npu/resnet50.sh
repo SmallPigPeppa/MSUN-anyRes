@@ -4,11 +4,11 @@
 # Example: modify values as needed
 python3 msun_sgd/resnet50.py fit \
   --data.data_dir ./imagenet \
-  --data.batch_size 128 \
+  --data.batch_size 256 \
   --data.num_workers 16 \
   --data.img_size 224 \
   --model.num_classes 1000 \
-  --model.learning_rate 0.5 \
+  --model.learning_rate 1.0 \
   --model.weight_decay 2e-5 \
   --model.alpha 1.0 \
   --trainer.max_epochs 90 \
@@ -24,3 +24,4 @@ python3 msun_sgd/resnet50.py fit \
   --model_checkpoint.save_top_k 1 \
   --model_checkpoint.save_last True \
   --lr_monitor.logging_interval epoch
+
