@@ -39,7 +39,6 @@ class MultiScaleResNet(lightning.LightningModule):
         if name == 'resnet50':
             base = resnet50(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
             self.unified_net, self.subnets, self.res_lists, self.z_size = build_resnet50(res_lists, base)
-
         elif name == 'densenet121':
             base = densenet121(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
             self.unified_net, self.subnets, self.res_lists, self.z_size = build_densenet101(res_lists, base)
