@@ -42,6 +42,15 @@ class MultiScaleResNet(lightning.LightningModule):
         self.mse_loss = nn.MSELoss()
         self.acc = torchmetrics.Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
 
+        # test_resolutions list
+        self.test_resolutions = list(range(32, 225, 16))
+        # one Accuracy per (subnet_idx, resolution)
+        self.test_accs = nn.ModuleDict({
+            f"acc_{i}_{r}": torchmetrics.Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
+            for i in range(len(self.subnets))
+            for r in self.test_resolutions
+        })
+
     def _build_msun(self, res_lists: List[List[int]], base: nn.Module):
         """Build stem, unified head, and per-resolution subnets."""
         # build unified head

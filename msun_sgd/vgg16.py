@@ -10,6 +10,7 @@ from lightning.pytorch import cli
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from lightning_datamodulev3 import ImageNetDataModule
+from typing import List, Tuple
 LAYERS = 24
 
 
@@ -44,6 +45,15 @@ class MultiScaleVGG(lightning.LightningModule):
         self.ce_loss = nn.CrossEntropyLoss()
         self.mse_loss = nn.MSELoss()
         self.acc = torchmetrics.Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
+
+        # test_resolutions list
+        self.test_resolutions = list(range(32, 225, 16))
+        # one Accuracy per (subnet_idx, resolution)
+        self.test_accs = nn.ModuleDict({
+            f"acc_{i}_{r}": torchmetrics.Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
+            for i in range(len(self.subnets))
+            for r in self.test_resolutions
+        })
 
     def _build_msun(self, res_lists, base: nn.Module):
         # Store resolution lists
