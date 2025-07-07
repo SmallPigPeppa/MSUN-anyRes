@@ -39,16 +39,16 @@ class MultiScaleResNet(lightning.LightningModule):
         name = self.hparams.model_name.lower()
         if name == 'resnet50':
             base = resnet50(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
-            self.unified_net, self.subnets, self.res_lists, self.z_size = build_resnet50(res_lists, base)
+            self.unified_net, self.subnets, self.res_lists, self.z_size = build_resnet50(res_lists, base, self.device)
         elif name == 'densenet121':
             base = densenet121(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
-            self.unified_net, self.subnets, self.res_lists, self.z_size = build_densenet101(res_lists, base)
+            self.unified_net, self.subnets, self.res_lists, self.z_size = build_densenet101(res_lists, base, self.device)
         elif name == 'vgg16':
             base = vgg16_bn(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
-            self.unified_net, self.subnets, self.res_lists, self.z_size = build_vgg16(res_lists, base)
+            self.unified_net, self.subnets, self.res_lists, self.z_size = build_vgg16(res_lists, base, self.device)
         elif name == 'mobilenetv2':
             base = mobilenet_v2(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
-            self.unified_net, self.subnets, self.res_lists, self.z_size = build_mobilenetv2(res_lists, base)
+            self.unified_net, self.subnets, self.res_lists, self.z_size = build_mobilenetv2(res_lists, base, self.device)
         else:
             raise ValueError(f"Unsupported model: {name}")
 

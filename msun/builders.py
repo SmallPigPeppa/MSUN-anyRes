@@ -9,7 +9,7 @@ LAYERS_MOBILENET = 10
 LAYERS_VGG = 24
 
 
-def build_resnet50(res_lists: List[List[int]], base: nn.Module):
+def build_resnet50(res_lists: List[List[int]], base: nn.Module, device):
     """Build unified head and per-scale subnets for ResNet50."""
     u = copy.deepcopy(base)
     u.conv1 = nn.Identity()
@@ -38,14 +38,13 @@ def build_resnet50(res_lists: List[List[int]], base: nn.Module):
     # Automatically determine the unified spatial size from the last subnet
     with torch.no_grad():
         max_res = max(res_lists[-1])
-        dummy = torch.zeros(1, 3, max_res, max_res, device=base.device)
+        dummy = torch.zeros(1, 3, max_res, max_res, device=device)
         z_size = subnets[-1](dummy).shape[-1]
-        
+
     return u, subnets, res_lists, z_size
 
 
-
-def build_densenet101(res_lists: List[List[int]], base: nn.Module):
+def build_densenet101(res_lists: List[List[int]], base: nn.Module, device):
     # Unified head: remove initial conv/pool and first denseblock
     u = copy.deepcopy(base)
     u.features.conv0 = nn.Identity()
@@ -85,13 +84,13 @@ def build_densenet101(res_lists: List[List[int]], base: nn.Module):
     # Determine spatial size for unified head
     with torch.no_grad():
         max_res = max(res_lists[-1])
-        dummy = torch.zeros(1, 3, max_res, max_res, device=base.device)
+        dummy = torch.zeros(1, 3, max_res, max_res, device=device)
         z_size = subnets[-1](dummy).shape[-1]
-    
+
     return u, subnets, res_lists, z_size
 
 
-def build_vgg16(res_lists: List[List[int]], base: nn.Module):
+def build_vgg16(res_lists: List[List[int]], base: nn.Module, device):
     """Build unified head and per-scale subnets for VGG16-BN."""
     # Unified head: remove first LAYERS convolutional layers
     u = copy.deepcopy(base)
@@ -117,14 +116,13 @@ def build_vgg16(res_lists: List[List[int]], base: nn.Module):
     # Determine feature-map spatial size after subnets
     with torch.no_grad():
         max_res = max(res_lists[-1])
-        dummy = torch.zeros(1, 3, max_res, max_res, device=base.device)
+        dummy = torch.zeros(1, 3, max_res, max_res, device=device)
         z_size = subnets[-1](dummy).shape[-1]
 
     return u, subnets, res_lists, z_size
 
 
-
-def build_mobilenetv2(res_lists: List[List[int]], base: nn.Module):
+def build_mobilenetv2(res_lists: List[List[int]], base: nn.Module, device):
     """Build unified head and per-scale subnets for MobileNetV2."""
     u = copy.deepcopy(base)
     for i in range(LAYERS_MOBILENET):
@@ -152,10 +150,7 @@ def build_mobilenetv2(res_lists: List[List[int]], base: nn.Module):
     # Determine feature-map spatial size after subnets
     with torch.no_grad():
         max_res = max(res_lists[-1])
-        dummy = torch.zeros(1, 3, max_res, max_res, device=base.device)
+        dummy = torch.zeros(1, 3, max_res, max_res, device=device)
         z_size = subnets[-1](dummy).shape[-1]
 
     return u, subnets, res_lists, z_size
-
-
-
