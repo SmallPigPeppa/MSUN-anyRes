@@ -199,8 +199,9 @@ class MultiScaleResNet(lightning.LightningModule):
 
         # log a single wandb.Table
         table = wandb.Table(data=rows, columns=["subnet_idx", "resolution", "accuracy"])
-        import pdb; pdb.set_trace()
-        wandb.log({"test/accuracy_table": table})
+        # import pdb; pdb.set_trace()
+        if self.trainer.is_global_zero:
+            wandb.log({"test/accuracy_table": table})
 
 
 class CLI(cli.LightningCLI):
