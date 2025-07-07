@@ -24,7 +24,7 @@ class ImageNetDataModule(LightningDataModule):
             transforms.RandomResizedCrop(
                 img_size,
                 scale=(0.08, 1.0),
-                interpolation=InterpolationMode.BICUBIC
+                interpolation=InterpolationMode.BILINEAR
             ),
             transforms.RandomHorizontalFlip(p=0.5),
             transforms.ToTensor(),
@@ -32,7 +32,7 @@ class ImageNetDataModule(LightningDataModule):
         ])
         # Validation transforms
         self.val_tf = transforms.Compose([
-            transforms.Resize(int(img_size * 256 / 224)),
+            transforms.Resize(int(img_size * 256 / 224), interpolation=InterpolationMode.BILINEAR),
             transforms.CenterCrop(img_size),
             transforms.ToTensor(),
             transforms.Normalize(mean, std),
