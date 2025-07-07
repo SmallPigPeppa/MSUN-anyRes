@@ -2,7 +2,6 @@
 # Explicit startup script for training MultiScaleResNet via LightningCLI
 
 # Example: modify values as needed
-#  --trainer.precision bf16-mixed \
 python3 msun_sgd/vgg16.py fit \
   --data.data_dir ./imagenet \
   --data.batch_size 32 \
@@ -11,7 +10,7 @@ python3 msun_sgd/vgg16.py fit \
   --model.num_classes 1000 \
   --model.learning_rate 0.1 \
   --model.weight_decay 2e-5 \
-  --model.alpha 0. \
+  --model.alpha 1.0 \
   --trainer.max_epochs 90 \
   --trainer.precision bf16-mixed \
   --trainer.accelerator gpu \

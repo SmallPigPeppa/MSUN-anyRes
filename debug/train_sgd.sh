@@ -16,7 +16,7 @@ declare -A params=(
 for model in "${models[@]}"; do
   IFS=: read -r bs lr wd ep <<<"${params[$model]}"
   echo "Training $model (batch_size=$bs, lr=$lr, weight_decay=$wd, epochs=$ep)"
-  python3 debug/main.py fit \
+  python3 debug/main_sgd.py fit \
     --data.data_dir ./imagenet \
     --data.batch_size "$bs" \
     --data.num_workers 16 \
