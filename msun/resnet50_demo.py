@@ -190,25 +190,26 @@ class MultiScaleResNet(lightning.LightningModule):
 
     def on_test_epoch_end(self):
         # only run on main process
-        if self.trainer.is_global_zero:
-            # prepare columns and rows
-            cols = ["subnet"] + [str(r) for r in self.test_resolutions]
-            rows = []
-            for i in range(len(self.subnets)):
-                # compute acc for each resolution
-                accs = [
-                    self.test_accs[f"acc_{i}_{r}"].compute().item()
-                    for r in self.test_resolutions
-                ]
-                rows.append([f"subnet{i + 1}", *accs])
+        if not self.trainer.is_global_zero:
+            return
+        # prepare columns and rows
+        cols = ["subnet"] + [str(r) for r in self.test_resolutions]
+        rows = []
+        for i in range(len(self.subnets)):
+            # compute acc for each resolution
+            accs = [
+                self.test_accs[f"acc_{i}_{r}"].compute().item()
+                for r in self.test_resolutions
+            ]
+            rows.append([f"subnet{i + 1}", *accs])
 
-            # reset all metrics in one go
-            for m in self.test_accs.values():
-                m.reset()
+        # reset all metrics in one go
+        for m in self.test_accs.values():
+            m.reset()
 
-            # log to W&B
-            table = wandb.Table(data=rows, columns=cols)
-            wandb.log({"test/accuracy_table": table})
+        # log to W&B
+        table = wandb.Table(data=rows, columns=cols)
+        wandb.log({"test/accuracy_table": table})
 
 class CLI(cli.LightningCLI):
     def add_arguments_to_parser(self, parser):
