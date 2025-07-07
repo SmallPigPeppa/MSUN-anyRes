@@ -63,7 +63,6 @@ class FixedResNet(lightning.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        self.base.eval()
         imgs, labels = batch
         # compute and log loss
         logits = self(imgs)
@@ -86,7 +85,6 @@ class FixedResNet(lightning.LightningModule):
             acc = self.acc(preds, labels)
             # log per-epoch accuracy
             self.log(f'val/acc{scale}', acc, on_step=False, on_epoch=True)
-            self.base.train()
         return loss
 
     def configure_optimizers(self):

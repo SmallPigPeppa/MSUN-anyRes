@@ -119,8 +119,6 @@ class MultiScaleResNet(lightning.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        self.unified_net.eval()
-        self.subnets.eval()
         imgs, labels = batch
         fixed = [32, 48, 96, 128, 176, 224]
         accs, sir_vals = {}, {}
@@ -144,8 +142,6 @@ class MultiScaleResNet(lightning.LightningModule):
         logs['loss'] = loss
         self.log_dict({f'val/{k}': v for k, v in logs.items()}, prog_bar=['val/acc224'])
 
-        self.unified_net.train()
-        self.subnets.train()
         return loss
 
     def configure_optimizers(self):
