@@ -97,7 +97,7 @@ class MultiScaleResNet(lightning.LightningModule):
 
         # SIR losses against last subnet with explicit thresholds
         ref = zs[-1]
-        sir_thr = [0., 0., 0.]
+        sir_thr = [0.1, 0.1, 0.1]
         sir_losses = [self.mse_loss(
             F.interpolate(z, self.z_size, mode='bilinear', align_corners=False),
             F.interpolate(ref, self.z_size, mode='bilinear', align_corners=False)
