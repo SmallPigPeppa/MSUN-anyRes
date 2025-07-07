@@ -48,6 +48,7 @@ class MultiScaleResNet(lightning.LightningModule):
 
         # test_resolutions list
         self.test_resolutions = list(range(32, 225, 16))
+        self.test_resolutions = [32]
         # one Accuracy per (subnet_idx, resolution)
         self.test_accs = nn.ModuleDict({
             f"acc_{i}_{r}": Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
@@ -198,6 +199,7 @@ class MultiScaleResNet(lightning.LightningModule):
 
         # log a single wandb.Table
         table = wandb.Table(data=rows, columns=["subnet_idx", "resolution", "accuracy"])
+        import pdb; pdb.set_trace()
         wandb.log({"test/accuracy_table": table})
 
 
