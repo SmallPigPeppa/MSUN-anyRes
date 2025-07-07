@@ -44,6 +44,8 @@ class MultiScaleResNet(lightning.LightningModule):
         self.mse_loss = nn.MSELoss()
         self.acc = torchmetrics.Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
 
+        # for test
+        self.test_resolutions = list(range(32, 225, 16))
         acc_metrics = {
             f"acc_{i}_{r}": torchmetrics.Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
             for i, rs in enumerate(self.test_resolutions)
