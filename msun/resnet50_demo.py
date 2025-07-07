@@ -190,17 +190,17 @@ class MultiScaleResNet(lightning.LightningModule):
 
     def on_test_epoch_end(self):
         # gather final accuracies and reset metrics
-        rows = []
-        for key, metric in self.test_accs.items():
-            _, idx, res = key.split("_")
-            acc = metric.compute().item()
-            metric.reset()
-            rows.append([int(idx), int(res), acc])
-
-        # log a single wandb.Table
-        table = wandb.Table(data=rows, columns=["subnet_idx", "resolution", "accuracy"])
-        # import pdb; pdb.set_trace()
         if self.trainer.is_global_zero:
+            rows = []
+            for key, metric in self.test_accs.items():
+                _, idx, res = key.split("_")
+                acc = metric.compute().item()
+                metric.reset()
+                rows.append([int(idx), int(res), acc])
+
+            # log a single wandb.Table
+            table = wandb.Table(data=rows, columns=["subnet_idx", "resolution", "accuracy"])
+            # import pdb; pdb.set_trace()
             wandb.log({"test/accuracy_table": table})
 
 
