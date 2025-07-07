@@ -5,6 +5,7 @@ set -euo pipefail
 models=(resnet50 densenet121 vgg16 mobilenetv2)
 models=(resnet50)
 
+
 # 2) keep your dict of hyperparams
 declare -A params=(
   [resnet50]="256:1.0:2e-5:90"
