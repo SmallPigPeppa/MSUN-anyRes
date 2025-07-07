@@ -206,7 +206,8 @@ class MultiScaleResNet(lightning.LightningModule):
 
         # log to W&B
         table = wandb.Table(data=rows, columns=cols)
-        wandb.log({"test/accuracy_table": table})
+        # wandb.log({"test/accuracy_table": table})
+        self.log_table("test/accuracy_table", table, logger=True)
 
 class CLI(cli.LightningCLI):
     def add_arguments_to_parser(self, parser):
