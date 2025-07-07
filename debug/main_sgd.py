@@ -42,6 +42,14 @@ class FixedResNet(lightning.LightningModule):
         self.ce_loss = nn.CrossEntropyLoss()
         self.acc = torchmetrics.Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
 
+        # test_resolutions list
+        self.test_resolutions = list(range(32, 225, 16))
+        # one Accuracy per (subnet_idx, resolution)
+        self.test_accs = nn.ModuleDict({
+            f"acc_{r}": torchmetrics.Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
+            for r in self.test_resolutions
+        })
+
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         return self.base(x)
 
@@ -81,8 +89,6 @@ class FixedResNet(lightning.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        # opt = optim.AdamW(self.parameters(), lr=self.hparams.learning_rate,
-        #                   weight_decay=self.hparams.weight_decay)
         opt = torch.optim.SGD(self.parameters(), lr=self.hparams.learning_rate,
                                     weight_decay=self.hparams.weight_decay, momentum=0.9)
         sched = LinearWarmupCosineAnnealingLR(
@@ -93,6 +99,46 @@ class FixedResNet(lightning.LightningModule):
             eta_min=0.01 * self.hparams.learning_rate
         )
         return {'optimizer': opt, 'lr_scheduler': sched}
+
+    def test_step(self, batch, batch_idx):
+        imgs, labels = batch
+
+        # for each subnet and each resolution
+
+        for r in self.test_resolutions:
+            # resize → subnet → unified head → predict
+            down = F.interpolate(imgs, size=(r, r), mode='bilinear', align_corners=False)
+            # upscale back to (224, 224)
+            up = F.interpolate(down, size=(224, 224), mode='bilinear', align_corners=False)
+            y = self.forward(up)
+            preds = y.argmax(dim=1)
+
+            # update the right Accuracy instance
+            key = f"acc_{r}"
+            self.test_accs[key](preds, labels)
+
+    def on_test_epoch_end(self):
+        # prepare columns and rows
+        cols = ["subnet"] + [str(r) for r in self.test_resolutions]
+        rows = []
+
+        # compute acc for each resolution
+        accs = [
+            self.test_accs[f"acc_{r}"].compute().item()
+            for r in self.test_resolutions
+        ]
+        rows.append([f"subnet0", *accs])
+
+        # reset all metrics in one go
+        for m in self.test_accs.values():
+            m.reset()
+
+        self.logger.log_table(
+            key="test/accuracy_table",
+            columns=cols,
+            data=rows
+        )
+
 
 
 class CLI(cli.LightningCLI):
