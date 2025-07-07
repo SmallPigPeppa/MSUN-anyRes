@@ -188,7 +188,7 @@ class MultiScaleResNet(lightning.LightningModule):
                 key = f"acc_{i}_{r}"
                 self.test_accs[key](preds, labels)
 
-    def test_epoch_end(self, outputs):
+    def on_test_epoch_end(self):
         # only run on main process
         if self.trainer.is_global_zero:
             # prepare columns and rows
