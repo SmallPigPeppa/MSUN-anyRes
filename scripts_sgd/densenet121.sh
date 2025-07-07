@@ -22,6 +22,8 @@ python3 msun_sgd/densenet121.py fit \
   --model_checkpoint.dirpath /mnt/bn/liuwenzhuo-lf/ckpt/msun/msun/densenet121 \
   --model_checkpoint.monitor val/acc224 \
   --model_checkpoint.save_top_k 1 \
+  --model_checkpoint.mode max \
+  --model_checkpoint.auto_insert_metric_name True \
   --model_checkpoint.save_last True \
   --lr_monitor.logging_interval epoch
 

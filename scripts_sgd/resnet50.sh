@@ -22,5 +22,7 @@ python3 msun_sgd/resnet50.py fit \
   --model_checkpoint.dirpath /mnt/bn/liuwenzhuo-lf/ckpt/msun/msun/resnet50 \
   --model_checkpoint.monitor val/acc224 \
   --model_checkpoint.save_top_k 1 \
+  --model_checkpoint.mode max \
+  --model_checkpoint.save_top_k 1 \
   --model_checkpoint.save_last True \
   --lr_monitor.logging_interval epoch
