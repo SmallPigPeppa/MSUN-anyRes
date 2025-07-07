@@ -48,13 +48,12 @@ class MultiScaleResNet(lightning.LightningModule):
 
         # test_resolutions list
         self.test_resolutions = list(range(32, 225, 16))
-        # create one Accuracy per subnet *and* per resolution
-        acc_metrics = {
+        # one Accuracy per (subnet_idx, resolution)
+        self.test_accs = nn.ModuleDict({
             f"acc_{i}_{r}": Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
             for i in range(len(self.subnets))
             for r in self.test_resolutions
-        }
-        self.test_metrics = MetricCollection(acc_metrics, prefix="test/")
+        })
 
     def _build_msun(self, res_lists: List[List[int]], base: nn.Module):
         """Build stem, unified head, and per-resolution subnets."""
@@ -176,7 +175,7 @@ class MultiScaleResNet(lightning.LightningModule):
     def test_step(self, batch, batch_idx):
         imgs, labels = batch
 
-        # for each subnet index and each resolution in your flat list
+        # for each subnet and each resolution
         for i, subnet in enumerate(self.subnets):
             for r in self.test_resolutions:
                 # resize → subnet → unified head → predict
@@ -184,19 +183,20 @@ class MultiScaleResNet(lightning.LightningModule):
                 _, y = self.forward_by_idx(x_r, i)
                 preds = y.argmax(dim=1)
 
-                # update the metric keyed by "acc_{i}_{r}"
-                # self.test_metrics.update({f"acc_{i}_{r}": (preds, labels)})
-                self.test_metrics.update(**{f"acc_{i}_{r}": (preds, labels)})
+                # update the right Accuracy instance
+                key = f"acc_{i}_{r}"
+                self.test_accs[key](preds, labels)
 
     def on_test_epoch_end(self):
-        # compute final accuracies for all (subnet_idx, resolution)
-        final = self.test_metrics.compute()  # e.g. {"test/acc_0_32": tensor(...), ...}
+        # gather final accuracies and reset metrics
+        rows = []
+        for key, metric in self.test_accs.items():
+            _, idx, res = key.split("_")
+            acc = metric.compute().item()
+            metric.reset()
+            rows.append([int(idx), int(res), acc])
 
-        # build a wandb Table: subnet_idx | resolution | accuracy
-        rows = [
-            [int(name.split("_")[1]), int(name.split("_")[2]), val.item()]
-            for name, val in final.items()
-        ]
+        # log a single wandb.Table
         table = wandb.Table(data=rows, columns=["subnet_idx", "resolution", "accuracy"])
         wandb.log({"test/accuracy_table": table})
 
