@@ -25,6 +25,7 @@ class MultiScaleResNet(lightning.LightningModule):
             weight_decay: float = 1e-4,
             max_epochs: int = 100,
             alpha: float = 1.0,
+            pretrained: bool = False,
     ):
         super().__init__()
         self.save_hyperparameters()
