@@ -39,6 +39,7 @@ for model in "${models[@]}"; do
     --model_checkpoint.filename     "epoch{epoch:02d}-acc{val/acc224:.2f}" \
     --model_checkpoint.monitor val/acc224 \
     --model_checkpoint.save_top_k 1 \
+    --model_checkpoint.mode max \
     --model_checkpoint.save_last True \
     --lr_monitor.logging_interval epoch
 done
