@@ -4,11 +4,11 @@
 # Example: modify values as needed
 python3 msun_sgd/densenet121.py fit \
   --data.data_dir ./imagenet \
-  --data.batch_size 32 \
+  --data.batch_size 256 \
   --data.num_workers 16 \
   --data.img_size 224 \
   --model.num_classes 1000 \
-  --model.learning_rate 0.1 \
+  --model.learning_rate 1.6 \
   --model.weight_decay 2e-5 \
   --model.alpha 0.05 \
   --trainer.max_epochs 90 \
