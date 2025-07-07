@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-python3 msun/resnet50_demo.py test \
+python3 msun_sgd/resnet50.py test \
   --data.data_dir     ./imagenet \
   --data.batch_size   256 \
   --data.num_workers  16 \
