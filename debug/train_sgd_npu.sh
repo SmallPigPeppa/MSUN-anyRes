@@ -3,13 +3,14 @@ set -euo pipefail
 
 # 1) define the exact order you want
 models=(resnet50 densenet121 vgg16 mobilenetv2)
+models=(resnet50)
 
 # 2) keep your dict of hyperparams
 declare -A params=(
   [resnet50]="256:1.0:2e-5:90"
-#  [densenet121]="32:0.1:2e-5:90"
-#  [vgg16]="32:0.1:2e-5:90"
-#  [mobilenetv2]="32:0.1:2e-5:300"
+  [densenet121]="32:0.1:2e-5:90"
+  [vgg16]="32:0.1:2e-5:90"
+  [mobilenetv2]="32:0.1:2e-5:300"
 )
 
 # 3) iterate over the *ordered* list
