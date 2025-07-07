@@ -45,7 +45,6 @@ class MultiScaleResNet(lightning.LightningModule):
         self.mse_loss = nn.MSELoss()
         self.acc = Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
 
-
         # test_resolutions list
         self.test_resolutions = list(range(32, 225, 16))
         self.test_resolutions = [32]
@@ -190,7 +189,7 @@ class MultiScaleResNet(lightning.LightningModule):
 
     def on_test_epoch_end(self):
         # prepare columns and rows
-        cols = ["subnet"] + [str(r) for r in self.test_resolutions]
+        cols = [str(r) for r in self.test_resolutions] + ["subnet"]
         rows = []
         for i in range(len(self.subnets)):
             # compute acc for each resolution
@@ -198,7 +197,7 @@ class MultiScaleResNet(lightning.LightningModule):
                 self.test_accs[f"acc_{i}_{r}"].compute().item()
                 for r in self.test_resolutions
             ]
-            rows.append([f"subnet{i + 1}", *accs])
+            rows.append([*accs, f"subnet{i + 1}"])
 
         # reset all metrics in one go
         for m in self.test_accs.values():
@@ -208,6 +207,7 @@ class MultiScaleResNet(lightning.LightningModule):
         table = wandb.Table(data=rows, columns=cols)
         # wandb.log({"test/accuracy_table": table})
         self.logger.log_table("test/accuracy_table", table)
+
 
 class CLI(cli.LightningCLI):
     def add_arguments_to_parser(self, parser):
