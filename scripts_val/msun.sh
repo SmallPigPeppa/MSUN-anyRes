@@ -2,16 +2,17 @@
 # Test multiple models with their respective checkpoints
 
 models=(resnet50 densenet121 vgg16 mobilenetv2)
+models=(vgg16)
 declare -A ckpt_paths=(
-  [resnet50]="/mnt/bn/liuwenzhuo-lf/ckpt/msun/fixedres/resnet50/last.ckpt"
-  [densenet121]="/mnt/bn/liuwenzhuo-lf/ckpt/msun/fixedres/densenet121/last.ckpt"
-  [vgg16]="/mnt/bn/liuwenzhuo-lf/ckpt/msun/fixedres/vgg16/last.ckpt"
-  [mobilenetv2]="/mnt/bn/liuwenzhuo-lf/ckpt/msun/fixedres/mobilenetv2/last.ckpt"
+  [resnet50]="/mnt/bn/liuwenzhuo-lf/ckpt/msun/msun/resnet50/last.ckpt"
+  [densenet121]="/mnt/bn/liuwenzhuo-lf/ckpt/msun/msun/densenet121/last.ckpt"
+  [vgg16]="/mnt/bn/liuwenzhuo-lf/ckpt/msun/msun/vgg16/last.ckpt"
+  [mobilenetv2]="/mnt/bn/liuwenzhuo-lf/ckpt/msun/msun/mobilenetv2/last.ckpt"
 )
 
 for m in "${models[@]}"; do
   # run test for model $m
-  python3 fixedres/main_sgd.py test \
+  python3 msun/main_sgd.py test \
     --data.data_dir     ./imagenet \
     --data.batch_size   256 \
     --data.num_workers  16 \
@@ -22,7 +23,7 @@ for m in "${models[@]}"; do
     --trainer.precision      bf16-mixed \
     --trainer.logger         WandbLogger \
     --trainer.logger.project msun-anyres-val \
-    --trainer.logger.name    fixedres-"$m" \
+    --trainer.logger.name    msun-"$m" \
     --trainer.logger.offline False \
     --ckpt_path            "${ckpt_paths[$m]}"
 done
