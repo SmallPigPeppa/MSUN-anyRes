@@ -28,8 +28,8 @@ for model in "${models[@]}"; do
     --model.weight_decay "$wd" \
     --model.model_name "$model" \
     --trainer.max_epochs "$ep" \
-  --trainer.precision 16 \
-  --trainer.accelerator npu \
+    --trainer.precision 16 \
+    --trainer.accelerator npu \
     --trainer.logger WandbLogger \
     --trainer.logger.project msun-anyres \
     --trainer.logger.name "fixedres-$model" \
