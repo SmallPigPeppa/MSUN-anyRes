@@ -189,7 +189,7 @@ class MultiScaleResNet(lightning.LightningModule):
 
     def on_test_epoch_end(self):
         # prepare columns and rows
-        cols = [str(r) for r in self.test_resolutions] + ["subnet"]
+        cols = ["subnet"] + [str(r) for r in self.test_resolutions]
         rows = []
         for i in range(len(self.subnets)):
             # compute acc for each resolution
@@ -197,7 +197,7 @@ class MultiScaleResNet(lightning.LightningModule):
                 self.test_accs[f"acc_{i}_{r}"].compute().item()
                 for r in self.test_resolutions
             ]
-            rows.append([*accs, f"subnet{i + 1}"])
+            rows.append([f"subnet{i + 1}", *accs])
 
         # reset all metrics in one go
         for m in self.test_accs.values():
