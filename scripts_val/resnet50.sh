@@ -7,7 +7,6 @@ python3 msun/resnet50_demo.py test \
   --data.img_size     224 \
   --model.num_classes 1000 \
   --trainer.accelerator    gpu \
-  --trainer.devices        1 \
   --trainer.precision      bf16-mixed \
   --trainer.logger         WandbLogger \
   --trainer.logger.project msun-anyres \
