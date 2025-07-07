@@ -56,7 +56,7 @@ class MultiScaleMobileNetV2(lightning.LightningModule):
             for r in self.test_resolutions
         })
 
-    def _build_msun(self, res_lists, base):
+    def _build_msun(self, res_lists: List[List[int]], base: nn.Module):
         self.res_lists = res_lists
         # unified head: strip shared blocks
         u = copy.deepcopy(base)

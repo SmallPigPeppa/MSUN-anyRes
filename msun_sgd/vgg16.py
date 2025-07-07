@@ -55,7 +55,7 @@ class MultiScaleVGG(lightning.LightningModule):
             for r in self.test_resolutions
         })
 
-    def _build_msun(self, res_lists, base: nn.Module):
+    def _build_msun(self, res_lists: List[List[int]], base: nn.Module):
         # Store resolution lists
         self.res_lists = res_lists
 

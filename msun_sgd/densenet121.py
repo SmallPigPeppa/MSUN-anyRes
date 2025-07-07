@@ -51,7 +51,7 @@ class MultiScaleDenseNet(lightning.LightningModule):
             for r in self.test_resolutions
         })
 
-    def _build_msun(self, res_lists, base: nn.Module):
+    def _build_msun(self, res_lists: List[List[int]], base: nn.Module):
         # Unified head: remove initial conv/pool and first denseblock
         u = copy.deepcopy(base)
         u.features.conv0 = nn.Identity()

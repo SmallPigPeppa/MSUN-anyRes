@@ -13,7 +13,6 @@ import torchmetrics
 import random
 from typing import List, Tuple
 import copy
-import wandb
 from torchmetrics import MetricCollection, Accuracy
 
 
