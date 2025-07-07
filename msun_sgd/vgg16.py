@@ -168,6 +168,49 @@ class MultiScaleVGG(lightning.LightningModule):
         )
         return {'optimizer': opt, 'lr_scheduler': sched}
 
+    def forward_by_idx(self, x: torch.Tensor, idx: int = -1) -> Tuple[torch.Tensor, torch.Tensor]:
+        z = self.subnets[idx](x)
+        y = self.unified_net(F.interpolate(z, size=self.z_size,
+                                           mode='bilinear', align_corners=False))
+        return z, y
+
+    def test_step(self, batch, batch_idx):
+        imgs, labels = batch
+
+        # for each subnet and each resolution
+        for i, subnet in enumerate(self.subnets):
+            for r in self.test_resolutions:
+                # resize → subnet → unified head → predict
+                x_r = F.interpolate(imgs, size=(r, r), mode='bilinear', align_corners=False)
+                _, y = self.forward_by_idx(x_r, i)
+                preds = y.argmax(dim=1)
+
+                # update the right Accuracy instance
+                key = f"acc_{i}_{r}"
+                self.test_accs[key](preds, labels)
+
+    def on_test_epoch_end(self):
+        # prepare columns and rows
+        cols = ["subnet"] + [str(r) for r in self.test_resolutions]
+        rows = []
+        for i in range(len(self.subnets)):
+            # compute acc for each resolution
+            accs = [
+                self.test_accs[f"acc_{i}_{r}"].compute().item()
+                for r in self.test_resolutions
+            ]
+            rows.append([f"subnet{i + 1}", *accs])
+
+        # reset all metrics in one go
+        for m in self.test_accs.values():
+            m.reset()
+
+        self.logger.log_table(
+            key="test/accuracy_table",
+            columns=cols,
+            data=rows
+        )
+
 
 class CLI(cli.LightningCLI):
     def add_arguments_to_parser(self, parser):

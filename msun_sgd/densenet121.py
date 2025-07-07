@@ -169,7 +169,7 @@ class MultiScaleDenseNet(lightning.LightningModule):
 
     def configure_optimizers(self):
         opt = torch.optim.SGD(self.parameters(), lr=self.hparams.learning_rate,
-                                    weight_decay=self.hparams.weight_decay, momentum=0.9)
+                              weight_decay=self.hparams.weight_decay, momentum=0.9)
         sched = LinearWarmupCosineAnnealingLR(
             opt,
             warmup_epochs=int(self.hparams.max_epochs * 0.05),
@@ -178,6 +178,49 @@ class MultiScaleDenseNet(lightning.LightningModule):
             eta_min=0.01 * self.hparams.learning_rate
         )
         return {'optimizer': opt, 'lr_scheduler': sched}
+
+    def forward_by_idx(self, x: torch.Tensor, idx: int = -1) -> Tuple[torch.Tensor, torch.Tensor]:
+        z = self.subnets[idx](x)
+        y = self.unified_net(F.interpolate(z, size=self.z_size,
+                                           mode='bilinear', align_corners=False))
+        return z, y
+
+    def test_step(self, batch, batch_idx):
+        imgs, labels = batch
+
+        # for each subnet and each resolution
+        for i, subnet in enumerate(self.subnets):
+            for r in self.test_resolutions:
+                # resize → subnet → unified head → predict
+                x_r = F.interpolate(imgs, size=(r, r), mode='bilinear', align_corners=False)
+                _, y = self.forward_by_idx(x_r, i)
+                preds = y.argmax(dim=1)
+
+                # update the right Accuracy instance
+                key = f"acc_{i}_{r}"
+                self.test_accs[key](preds, labels)
+
+    def on_test_epoch_end(self):
+        # prepare columns and rows
+        cols = ["subnet"] + [str(r) for r in self.test_resolutions]
+        rows = []
+        for i in range(len(self.subnets)):
+            # compute acc for each resolution
+            accs = [
+                self.test_accs[f"acc_{i}_{r}"].compute().item()
+                for r in self.test_resolutions
+            ]
+            rows.append([f"subnet{i + 1}", *accs])
+
+        # reset all metrics in one go
+        for m in self.test_accs.values():
+            m.reset()
+
+        self.logger.log_table(
+            key="test/accuracy_table",
+            columns=cols,
+            data=rows
+        )
 
 
 class CLI(cli.LightningCLI):
