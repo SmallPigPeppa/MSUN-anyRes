@@ -204,9 +204,14 @@ class MultiScaleResNet(lightning.LightningModule):
             m.reset()
 
         # log to W&B
-        table = wandb.Table(data=rows, columns=cols)
-        # wandb.log({"test/accuracy_table": table})
-        self.logger.log_table("test/accuracy_table", table)
+        # table = wandb.Table(data=rows, columns=cols)
+        # # wandb.log({"test/accuracy_table": table})
+        # self.logger.log_table("test/accuracy_table", table)
+        self.logger.log_table(
+            key="test/accuracy_table",
+            columns=cols,
+            data=rows
+        )
 
 
 class CLI(cli.LightningCLI):
