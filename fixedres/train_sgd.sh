@@ -8,11 +8,9 @@ models=(resnet50)
 
 # 2) keep your dict of hyperparams
 declare -A params=(
-#  [resnet50]="128:0.5:2e-5:90"
   [resnet50]="128:0.5:2e-5:90"
   [densenet121]="32:0.1:2e-5:90"
-#  [vgg16]="32:0.1:2e-5:90"
-  [vgg16]="256:0.4:2e-5:90"
+  [vgg16]="32:0.1:2e-5:90"
   [mobilenetv2]="32:0.1:2e-5:300"
 )
 
@@ -38,6 +36,7 @@ for model in "${models[@]}"; do
     --trainer.logger.log_model False \
     --trainer.logger.offline False \
     --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-lf/ckpt/msun/fixedres/$model" \
+    --model_checkpoint.filename     "epoch{epoch:02d}-acc{val/acc224:.4f}" \
     --model_checkpoint.monitor val/acc224 \
     --model_checkpoint.save_top_k 1 \
     --model_checkpoint.save_last True \
