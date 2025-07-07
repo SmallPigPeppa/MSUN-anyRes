@@ -11,7 +11,7 @@ python3 msun_sgd/vgg16.py fit \
   --model.num_classes 1000 \
   --model.learning_rate 0.1 \
   --model.weight_decay 2e-5 \
-  --model.alpha 1.0 \
+  --model.alpha 0. \
   --trainer.max_epochs 90 \
   --trainer.accelerator gpu \
   --trainer.logger WandbLogger \
