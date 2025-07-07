@@ -185,7 +185,8 @@ class MultiScaleResNet(lightning.LightningModule):
                 preds = y.argmax(dim=1)
 
                 # update the metric keyed by "acc_{i}_{r}"
-                self.test_metrics.update({f"acc_{i}_{r}": (preds, labels)})
+                # self.test_metrics.update({f"acc_{i}_{r}": (preds, labels)})
+                self.test_metrics.update(**{f"acc_{i}_{r}": (preds, labels)})
 
     def on_test_epoch_end(self):
         # compute final accuracies for all (subnet_idx, resolution)
