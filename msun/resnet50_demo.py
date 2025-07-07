@@ -48,7 +48,6 @@ class MultiScaleResNet(lightning.LightningModule):
 
         # test_resolutions list
         self.test_resolutions = list(range(32, 225, 16))
-        self.test_resolutions = [32]
         # one Accuracy per (subnet_idx, resolution)
         self.test_accs = nn.ModuleDict({
             f"acc_{i}_{r}": Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
@@ -188,21 +187,27 @@ class MultiScaleResNet(lightning.LightningModule):
                 key = f"acc_{i}_{r}"
                 self.test_accs[key](preds, labels)
 
-    def on_test_epoch_end(self):
-        # gather final accuracies and reset metrics
+    def test_epoch_end(self, outputs):
+        # only run on main process
         if self.trainer.is_global_zero:
+            # prepare columns and rows
+            cols = ["subnet"] + [str(r) for r in self.test_resolutions]
             rows = []
-            for key, metric in self.test_accs.items():
-                _, idx, res = key.split("_")
-                acc = metric.compute().item()
-                metric.reset()
-                rows.append([int(idx), int(res), acc])
+            for i in range(len(self.subnets)):
+                # compute acc for each resolution
+                accs = [
+                    self.test_accs[f"acc_{i}_{r}"].compute().item()
+                    for r in self.test_resolutions
+                ]
+                rows.append([f"subnet{i + 1}", *accs])
 
-            # log a single wandb.Table
-            table = wandb.Table(data=rows, columns=["subnet_idx", "resolution", "accuracy"])
-            # import pdb; pdb.set_trace()
+            # reset all metrics in one go
+            for m in self.test_accs.values():
+                m.reset()
+
+            # log to W&B
+            table = wandb.Table(data=rows, columns=cols)
             wandb.log({"test/accuracy_table": table})
-
 
 class CLI(cli.LightningCLI):
     def add_arguments_to_parser(self, parser):
