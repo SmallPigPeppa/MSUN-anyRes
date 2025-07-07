@@ -189,9 +189,6 @@ class MultiScaleResNet(lightning.LightningModule):
                 self.test_accs[key](preds, labels)
 
     def on_test_epoch_end(self):
-        # only run on main process
-        # if not self.trainer.is_global_zero:
-        #     return
         # prepare columns and rows
         cols = ["subnet"] + [str(r) for r in self.test_resolutions]
         rows = []
