@@ -6,8 +6,8 @@ models=(resnet50 densenet121 vgg16 mobilenetv2)
 
 # 2) keep your dict of hyperparams
 declare -A params=(
-  [resnet50]="128:0.5:2e-5:90"
-  [densenet121]="32:0.1:2e-5:90"
+#  [resnet50]="128:0.5:2e-5:90"
+#  [densenet121]="32:0.1:2e-5:90"
   [vgg16]="32:0.1:2e-5:90"
   [mobilenetv2]="32:0.1:2e-5:300"
 )
