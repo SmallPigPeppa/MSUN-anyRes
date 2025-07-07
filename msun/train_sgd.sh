@@ -18,7 +18,7 @@ declare -A params=(
 for model in "${models[@]}"; do
   IFS=: read -r bs lr wd ep <<<"${params[$model]}"
   echo "Training $model (batch_size=$bs, lr=$lr, weight_decay=$wd, epochs=$ep)"
-  python3 fixedres/main_sgd.py fit \
+  python3 musn/main_sgd.py fit \
     --data.data_dir ./imagenet \
     --data.batch_size "$bs" \
     --data.num_workers 16 \
@@ -35,8 +35,8 @@ for model in "${models[@]}"; do
     --trainer.logger.name "fixedres-$model" \
     --trainer.logger.log_model False \
     --trainer.logger.offline False \
-    --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-lf/ckpt/msun/fixedres/$model" \
-    --model_checkpoint.filename     "epoch{epoch:02d}-acc{val/acc224:.2f}" \
+    --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-lf/ckpt/msun/msun/$model" \
+    --model_checkpoint.filename    "epoch{epoch:02d}-acc{val/acc224:.2f}" \
     --model_checkpoint.monitor val/acc224 \
     --model_checkpoint.save_top_k 1 \
     --model_checkpoint.save_last True \
