@@ -2,7 +2,7 @@
 # Test multiple models with their respective checkpoints
 
 models=(resnet50 densenet121 vgg16 mobilenetv2)
-models=(vgg16)
+models=(resnet50)
 declare -A ckpt_paths=(
   [resnet50]="/mnt/bn/liuwenzhuo-lf/ckpt/msun/msun/resnet50/last.ckpt"
   [densenet121]="/mnt/bn/liuwenzhuo-lf/ckpt/msun/msun/densenet121/last.ckpt"
