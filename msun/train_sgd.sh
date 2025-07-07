@@ -4,7 +4,7 @@ set -euo pipefail
 # 1) define the model order
 models=(resnet50 densenet121 vgg16 mobilenetv2)
 # models=(vgg16)
-models=(resnet50)
+models=(densenet121)
 
 # 2) define dict of hyperparams: bs, lr, wd, epochs,  alpha
 
