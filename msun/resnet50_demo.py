@@ -8,7 +8,7 @@ from lightning.pytorch import cli
 from lightning.pytorch.callbacks.model_checkpoint import ModelCheckpoint
 from lightning.pytorch.callbacks.lr_monitor import LearningRateMonitor
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
-from lightning_datamodule import ImageNetDataModule
+from lightning_datamodulev3 import ImageNetDataModule
 import torchmetrics
 import random
 from typing import List, Tuple
@@ -187,7 +187,7 @@ class MultiScaleResNet(lightning.LightningModule):
                 # update the metric keyed by "acc_{i}_{r}"
                 self.test_metrics.update({f"acc_{i}_{r}": (preds, labels)})
 
-    def on_test_epoch_end(self, outputs):
+    def on_test_epoch_end(self):
         # compute final accuracies for all (subnet_idx, resolution)
         final = self.test_metrics.compute()  # e.g. {"test/acc_0_32": tensor(...), ...}
 
