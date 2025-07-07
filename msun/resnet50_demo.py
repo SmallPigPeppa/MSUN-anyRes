@@ -187,7 +187,7 @@ class MultiScaleResNet(lightning.LightningModule):
                 # update the metric keyed by "acc_{i}_{r}"
                 self.test_metrics.update({f"acc_{i}_{r}": (preds, labels)})
 
-    def test_epoch_end(self, outputs):
+    def on_test_epoch_end(self, outputs):
         # compute final accuracies for all (subnet_idx, resolution)
         final = self.test_metrics.compute()  # e.g. {"test/acc_0_32": tensor(...), ...}
 
