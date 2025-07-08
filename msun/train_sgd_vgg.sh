@@ -20,7 +20,7 @@ for model in "${models[@]}"; do
   IFS=':' read -r bs lr wd ep alpha <<<"${params[$model]}"
   echo "Training $model (batch_size=$bs, lr=$lr, weight_decay=$wd, epochs=$ep, alpha=$alpha)"
 
-  python3 msun/main_sgd.py fit \
+  python3 msun/main_sgd_swa.py fit \
     --data.data_dir ./imagenet \
     --data.batch_size "$bs" \
     --data.num_workers 16 \
