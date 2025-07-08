@@ -61,9 +61,10 @@ def build_densenet101(res_lists: List[List[int]], base: nn.Module, device):
     # Per-scale subnets: initial conv layers + first denseblock
     configs = [
         {'k': 3, 's': 1, 'p': 1, 'pool': False, 'r': res_lists[0]},
-        {'k': 5, 's': 1, 'p': 2, 'pool': True, 'r': res_lists[1]},
-        {'k': 7, 's': 2, 'p': 3, 'pool': True, 'r': res_lists[2]},
+        {'k': 3, 's': 1, 'p': 1, 'pool': False, 'r': res_lists[1]},
+        {'k': 5, 's': 1, 'p': 2, 'pool': True, 'r': res_lists[2]},
         {'k': 7, 's': 2, 'p': 3, 'pool': True, 'r': res_lists[3]},
+        {'k': 7, 's': 2, 'p': 3, 'pool': True, 'r': res_lists[4]},
     ]
     res_lists = [c['r'] for c in configs]
     subnets = nn.ModuleList()
