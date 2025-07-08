@@ -45,3 +45,4 @@ for model in "${models[@]}"; do
     --lr_monitor.logging_interval epoch
 done
 
+
