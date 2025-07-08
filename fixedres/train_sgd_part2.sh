@@ -35,7 +35,7 @@ for model in "${models[@]}"; do
     --trainer.logger.log_model False \
     --trainer.logger.offline False \
     --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-hl-data/ckpt/msun/fixedres/$model" \
-    --model_checkpoint.filename "epoch-{epoch:02d}-val_acc224-{val/acc224:.2f}" \
+    --model_checkpoint.filename "epoch-{epoch:02d}-val_acc224-{val/acc224:.4f}" \
     --model_checkpoint.auto_insert_metric_name False \
     --model_checkpoint.monitor val/acc224 \
     --model_checkpoint.save_top_k 1 \

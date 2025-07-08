@@ -36,7 +36,7 @@ for model in "${models[@]}"; do
     --trainer.logger.offline False \
     --swa.swa_lrs 1e-2 \
     --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-hl-data/ckpt/msun/fixedres-swa/$model" \
-    --model_checkpoint.filename "epoch-{epoch:02d}-val_acc224-{val/acc224:.2f}" \
+    --model_checkpoint.filename "epoch-{epoch:02d}-val_acc224-{val/acc224:.4f}" \
     --model_checkpoint.auto_insert_metric_name False \
     --model_checkpoint.monitor val/acc224 \
     --model_checkpoint.save_top_k 1 \
