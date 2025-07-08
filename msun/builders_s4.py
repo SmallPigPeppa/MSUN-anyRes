@@ -135,7 +135,7 @@ def build_mobilenetv2(res_lists: List[List[int]], base: nn.Module, device):
     for idx in range(len(res_lists)):
         v = copy.deepcopy(base)
         layers = [v.features[i] for i in range(LAYERS_MOBILENET)]
-        if idx == 0:
+        if idx in [0, 1]:
             # first subnet: 1x1 conv and custom depthwise blocks
             layers[0] = Conv2dNormActivation(3, 32, kernel_size=1, stride=1,
                                              norm_layer=nn.BatchNorm2d, activation_layer=nn.ReLU6)
@@ -143,7 +143,7 @@ def build_mobilenetv2(res_lists: List[List[int]], base: nn.Module, device):
                                                      norm_layer=nn.BatchNorm2d, activation_layer=nn.ReLU6)
             layers[4].conv[1] = Conv2dNormActivation(144, 144, kernel_size=3, stride=1, groups=144,
                                                      norm_layer=nn.BatchNorm2d, activation_layer=nn.ReLU6)
-        elif idx == 1:
+        elif idx == 2:
             # second subnet: 3x3 first conv
             layers[0] = Conv2dNormActivation(3, 32, kernel_size=3, stride=1,
                                              norm_layer=nn.BatchNorm2d, activation_layer=nn.ReLU6)
