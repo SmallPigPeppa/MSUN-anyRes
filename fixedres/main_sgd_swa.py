@@ -45,13 +45,12 @@ class FixedResNet(lightning.LightningModule):
 
         # test_resolutions list
         self.test_resolutions = list(range(32, 225, 16))
-        # one Accuracy per (subnet_idx, resolution)
         self.test_accs = nn.ModuleDict({
             f"acc_{r}": torchmetrics.Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
             for r in self.test_resolutions
         })
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor) ->  torch.Tensor:
         return self.base(x)
 
     def training_step(self, batch, batch_idx):

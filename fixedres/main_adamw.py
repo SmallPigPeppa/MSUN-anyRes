@@ -42,7 +42,7 @@ class FixedResNet(lightning.LightningModule):
         self.ce_loss = nn.CrossEntropyLoss()
         self.acc = torchmetrics.Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor) ->  torch.Tensor:
         return self.base(x)
 
     def training_step(self, batch, batch_idx):

@@ -9,15 +9,18 @@ from lightning.pytorch.callbacks.lr_monitor import LearningRateMonitor
 from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from lightning_datamodulev3 import ImageNetDataModule
 import torchmetrics
-from typing import Tuple
+import random
+from typing import List, Tuple
+from lightning.pytorch.callbacks import StochasticWeightAveraging
 
 
-class FixedResNet(lightning.LightningModule):
+class MultiScaleResNet(lightning.LightningModule):
+    """Multi-scale ResNet50 with SIR and explicit CE/SIR thresholds."""
 
     def __init__(
             self,
-            model_name: str = 'resnet50',
             num_classes: int = 1000,
+            model_name: str = 'resnet50',
             learning_rate: float = 1e-3,
             weight_decay: float = 1e-4,
             max_epochs: int = 100,
@@ -25,6 +28,12 @@ class FixedResNet(lightning.LightningModule):
     ):
         super().__init__()
         self.save_hyperparameters()
+
+        # Prepare resolution groups
+        self.res_lists = [list(range(32, 65, 16)),
+                     list(range(80, 145, 16)),
+                     list(range(160, 209, 16)),
+                     [224]]
 
         name = self.hparams.model_name.lower()
         if name == 'resnet50':
@@ -44,52 +53,76 @@ class FixedResNet(lightning.LightningModule):
 
         # test_resolutions list
         self.test_resolutions = list(range(32, 225, 16))
-        # one Accuracy per (subnet_idx, resolution)
         self.test_accs = nn.ModuleDict({
             f"acc_{r}": torchmetrics.Accuracy(task="multiclass", num_classes=self.hparams.num_classes)
             for r in self.test_resolutions
         })
 
-    def forward(self, x: torch.Tensor) ->  torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.base(x)
+
+    def forward_random(self, x: torch.Tensor) -> List[torch.Tensor]:
+        ys = []
+        for r_list in self.res_lists:
+            r = random.choice(r_list)
+            down = F.interpolate(x, size=(r, r), mode='bilinear', align_corners=False)
+            # upscale back to (224, 224)
+            up = F.interpolate(down, size=(224, 224), mode='bilinear', align_corners=False)
+            # forward pass
+            ys.append(self.forward(up))
+
+        return ys
+
+    def forward_by_res(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        h = x.shape[2]
+        for net, r_list in zip(self.subnets, self.res_lists):
+            if h in r_list:
+                z = net(x)
+                y = self.unified_net(F.interpolate(z, size=self.z_size,
+                                                   mode='bilinear', align_corners=False))
+                return z, y
 
     def training_step(self, batch, batch_idx):
         imgs, labels = batch
-        logits = self.forward(imgs)
-        loss = self.ce_loss(logits, labels)
+        ys = self.forward_random(imgs)
 
-        # log training loss
-        self.log('train/ce_tot', loss, on_step=False, on_epoch=True)
+        # CE losses with explicit thresholds
+        ce_thr = [0., 0., 0., 0.]
+        ce_losses = [self.ce_loss(y, labels) for y in ys]
+        masked_ce = [l if l >= t else torch.zeros_like(l) for l, t in zip(ce_losses, ce_thr)]
+        total_ce = sum(masked_ce)
+
+        # Combined loss
+        loss = total_ce
+        # log metrics
+        logs = {}
+        for i, (ce, y) in enumerate(zip(masked_ce, ys), start=1):
+            logs[f'ce{i}'] = ce
+            logs[f'acc{i}'] = self.acc(y, labels)
+        logs['ce_tot'] = total_ce
+        self.log_dict({f'train/{k}': v for k, v in logs.items()}, prog_bar=['train/acc1'])
         return loss
 
     def validation_step(self, batch, batch_idx):
         imgs, labels = batch
-        # compute and log loss
-        logits = self(imgs)
-        loss = self.ce_loss(logits, labels)
-        self.log('val/loss', loss, on_step=False, on_epoch=True)
-        eval_scales = [32, 48, 96, 128, 176, 224]
-
-        # evaluate different downscale -> upscale paths
-        for scale in eval_scales:
-            # downscale to (scale, scale)
-            down = F.interpolate(imgs, size=(scale, scale), mode='bilinear', align_corners=False)
-            # upscale back to (224, 224)
+        fixed = [32, 48, 96, 128, 176, 224]
+        accs = {}
+        for r in fixed:
+            down = F.interpolate(imgs, size=(r, r), mode='bilinear', align_corners=False)
             up = F.interpolate(down, size=(224, 224), mode='bilinear', align_corners=False)
+            y = self.forward(up)
+            accs[r] = self.acc(y, labels)
+        ref_y = self.forward(imgs)
+        logs = {f'acc{r}': v for r, v in accs.items()}
+        loss = self.ce_loss(ref_y, labels)
+        logs['loss'] = loss
+        self.log_dict({f'val/{k}': v for k, v in logs.items()}, prog_bar=['val/acc224'])
 
-            # forward pass
-            logits = self.forward(up)
-            preds = torch.argmax(logits, dim=1)
-
-            # update accuracy metric
-            acc = self.acc(preds, labels)
-            # log per-epoch accuracy
-            self.log(f'val/acc{scale}', acc, on_step=False, on_epoch=True)
         return loss
 
     def configure_optimizers(self):
         opt = torch.optim.SGD(self.parameters(), lr=self.hparams.learning_rate,
-                                    weight_decay=self.hparams.weight_decay, momentum=0.9)
+                              weight_decay=self.hparams.weight_decay, momentum=0.9)
         sched = LinearWarmupCosineAnnealingLR(
             opt,
             warmup_epochs=int(self.hparams.max_epochs * 0.05),
@@ -98,6 +131,7 @@ class FixedResNet(lightning.LightningModule):
             eta_min=0.01 * self.hparams.learning_rate
         )
         return {'optimizer': opt, 'lr_scheduler': sched}
+
 
     def test_step(self, batch, batch_idx):
         imgs, labels = batch
@@ -138,7 +172,6 @@ class FixedResNet(lightning.LightningModule):
         )
 
 
-
 class CLI(cli.LightningCLI):
     def add_arguments_to_parser(self, parser):
         parser.link_arguments(
@@ -146,11 +179,12 @@ class CLI(cli.LightningCLI):
         )
         parser.add_lightning_class_args(ModelCheckpoint, 'model_checkpoint')
         parser.add_lightning_class_args(LearningRateMonitor, 'lr_monitor')
+        parser.add_lightning_class_args(StochasticWeightAveraging, 'swa')
 
 
 if __name__ == '__main__':
     CLI(
-        FixedResNet,
+        MultiScaleResNet,
         ImageNetDataModule,
         save_config_callback=None,
         seed_everything_default=42
