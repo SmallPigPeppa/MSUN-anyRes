@@ -3,15 +3,15 @@ set -euo pipefail
 
 # 1) define the model order
 models=(resnet50 densenet121 vgg16 mobilenetv2)
-models=(vgg16)
+models=(resnet50)
 
 # 2) define dict of hyperparams: bs, lr, wd, epochs,  alpha
 
 declare -A params=(
-  [resnet50]="128:0.5:2e-5:90:0.2"
-  [densenet121]="32:0.1:2e-5:90:0.2"
-  [vgg16]="256:0.4:2e-5:90:0.2"
-  [mobilenetv2]="32:0.1:2e-5:300:0.2"
+  [resnet50]="128:0.5:2e-5:90:1.0"
+  [densenet121]="128:0.5:2e-5:90:1.0"
+  [vgg16]="128:0.5:2e-5:90:1.0"
+  [mobilenetv2]="128:0.5:2e-5:90:1.0"
 )
 
 # 3) iterate over the *ordered* list
@@ -20,7 +20,7 @@ for model in "${models[@]}"; do
   IFS=':' read -r bs lr wd ep alpha <<<"${params[$model]}"
   echo "Training $model (batch_size=$bs, lr=$lr, weight_decay=$wd, epochs=$ep, alpha=$alpha)"
 
-  python3 msun/main_sgd_swa.py fit \
+  python3 msun/main_sgd_swa_s4.py fit \
     --data.data_dir ./imagenet \
     --data.batch_size "$bs" \
     --data.num_workers 16 \
@@ -35,12 +35,12 @@ for model in "${models[@]}"; do
     --trainer.accelerator gpu \
     --trainer.logger WandbLogger \
     --trainer.logger.project msun-anyres \
-    --trainer.logger.name "msun-$model" \
+    --trainer.logger.name "msun-swa-clip-s4-$model" \
     --trainer.logger.log_model False \
     --trainer.logger.offline False \
     --trainer.gradient_clip_val 0.5 \
     --swa.swa_lrs 1e-2 \
-    --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-lf/ckpt/msun/msun/$model" \
+    --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-lf/ckpt/msun/msun-swa-clip-s4/$model" \
     --model_checkpoint.filename "epoch-{epoch:02d}-val_acc224-{val/acc224:.4f}" \
     --model_checkpoint.auto_insert_metric_name False \
     --model_checkpoint.monitor val/acc224 \

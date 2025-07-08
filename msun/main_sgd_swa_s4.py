@@ -11,7 +11,7 @@ from lightning_datamodulev3 import ImageNetDataModule
 import torchmetrics
 import random
 from typing import List, Tuple
-from msun.builders import build_resnet50, build_densenet101, build_vgg16, build_mobilenetv2
+from msun.builders_s4 import build_resnet50, build_densenet101, build_vgg16, build_mobilenetv2
 from lightning.pytorch.callbacks import StochasticWeightAveraging
 
 
@@ -32,11 +32,11 @@ class MultiScaleResNet(lightning.LightningModule):
         self.save_hyperparameters()
 
         # Prepare resolution groups
-        res_lists = [list(range(32, 65, 16)),
+        res_lists = [[32],
+                     list(range(48, 65, 16)),
                      list(range(80, 145, 16)),
                      list(range(160, 209, 16)),
                      [224]]
-
 
         name = self.hparams.model_name.lower()
         if name == 'resnet50':
@@ -44,13 +44,15 @@ class MultiScaleResNet(lightning.LightningModule):
             self.unified_net, self.subnets, self.res_lists, self.z_size = build_resnet50(res_lists, base, self.device)
         elif name == 'densenet121':
             base = densenet121(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
-            self.unified_net, self.subnets, self.res_lists, self.z_size = build_densenet101(res_lists, base, self.device)
+            self.unified_net, self.subnets, self.res_lists, self.z_size = build_densenet101(res_lists, base,
+                                                                                            self.device)
         elif name == 'vgg16':
             base = vgg16_bn(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
             self.unified_net, self.subnets, self.res_lists, self.z_size = build_vgg16(res_lists, base, self.device)
         elif name == 'mobilenetv2':
             base = mobilenet_v2(pretrained=self.hparams.pretrained, num_classes=self.hparams.num_classes)
-            self.unified_net, self.subnets, self.res_lists, self.z_size = build_mobilenetv2(res_lists, base, self.device)
+            self.unified_net, self.subnets, self.res_lists, self.z_size = build_mobilenetv2(res_lists, base,
+                                                                                            self.device)
         else:
             raise ValueError(f"Unsupported model: {name}")
 
@@ -92,14 +94,14 @@ class MultiScaleResNet(lightning.LightningModule):
         zs, ys = self.forward_random(imgs)
 
         # CE losses with explicit thresholds
-        ce_thr = [0., 0., 0., 0.]
+        ce_thr = [0., 0., 0., 0., 0.]
         ce_losses = [self.ce_loss(y, labels) for y in ys]
         masked_ce = [l if l >= t else torch.zeros_like(l) for l, t in zip(ce_losses, ce_thr)]
         total_ce = sum(masked_ce)
 
         # SIR losses against last subnet with explicit thresholds
         ref = zs[-1]
-        sir_thr = [0.1, 0.1, 0.1]
+        sir_thr = [0.1, 0.1, 0.1, 0.1]
         # sir_thr = [0., 0., 0.]
         sir_losses = [self.mse_loss(
             F.interpolate(z, self.z_size, mode='bilinear', align_corners=False),
@@ -210,7 +212,6 @@ class CLI(cli.LightningCLI):
         parser.add_lightning_class_args(ModelCheckpoint, 'model_checkpoint')
         parser.add_lightning_class_args(LearningRateMonitor, 'lr_monitor')
         parser.add_lightning_class_args(StochasticWeightAveraging, 'swa')
-
 
 
 if __name__ == '__main__':
