@@ -10,6 +10,7 @@ from pl_bolts.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from lightning_datamodulev3 import ImageNetDataModule
 import torchmetrics
 from typing import Tuple
+from lightning.pytorch.callbacks import StochasticWeightAveraging
 
 
 class FixedResNet(lightning.LightningModule):
@@ -146,6 +147,7 @@ class CLI(cli.LightningCLI):
         )
         parser.add_lightning_class_args(ModelCheckpoint, 'model_checkpoint')
         parser.add_lightning_class_args(LearningRateMonitor, 'lr_monitor')
+        parser.add_lightning_class_args(StochasticWeightAveraging, 'swa')
 
 
 if __name__ == '__main__':
