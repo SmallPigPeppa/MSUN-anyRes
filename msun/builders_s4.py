@@ -107,10 +107,10 @@ def build_vgg16(res_lists: List[List[int]], base: nn.Module, device):
         for i in range(LAYERS_VGG):
             layer = v.features[i]
             # First subnet: replace MaxPool at layers 6,13,23 with stride-1 pooling
-            if idx == 0 and i in [6, 13, 23]:
+            if idx in [0, 1] and i in [6, 13, 23]:
                 layer = nn.MaxPool2d(kernel_size=2, stride=1)
             # Second subnet: replace MaxPool at layer 23 with stride-1 pooling
-            elif idx == 1 and i == 23:
+            elif idx == 2 and i == 23:
                 layer = nn.MaxPool2d(kernel_size=2, stride=1)
             layers.append(layer)
         subnets.append(nn.Sequential(*layers))
