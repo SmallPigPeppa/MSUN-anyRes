@@ -8,10 +8,10 @@ models=(resnet50)
 # 2) define dict of hyperparams: bs, lr, wd, epochs,  alpha
 
 declare -A params=(
-  [resnet50]="128:0.5:2e-5:90:1.0"
-  [densenet121]="128:0.5:2e-5:90:1.0"
-  [vgg16]="128:0.5:2e-5:90:1.0"
-  [mobilenetv2]="128:0.5:2e-5:300:1.0"
+  [resnet50]="128:0.5:2e-5:90:0.1"
+  [densenet121]="128:0.5:2e-5:90:0.1"
+  [vgg16]="128:0.5:2e-5:90:0.1"
+  [mobilenetv2]="128:0.5:2e-5:300:0.1"
 )
 
 # 3) iterate over the *ordered* list
