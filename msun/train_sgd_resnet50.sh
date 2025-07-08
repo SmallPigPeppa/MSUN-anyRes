@@ -1,23 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 1) define the exact order you want
+# 1) define the model order
 models=(resnet50 densenet121 vgg16 mobilenetv2)
-models=(densenet121)
+models=(resnet50)
 
-# 2) keep your dict of hyperparams
+# 2) define dict of hyperparams: bs, lr, wd, epochs,  alpha
+
 declare -A params=(
-  [resnet50]="128:0.5:2e-5:90"
-  [densenet121]="32:0.1:2e-5:90"
-  [vgg16]="256:0.4:2e-5:90"
-  [mobilenetv2]="32:0.1:2e-5:300"
+  [resnet50]="128:0.5:2e-5:90:0.2"
+  [densenet121]="32:0.1:2e-5:90:0.2"
+  [vgg16]="256:0.4:2e-5:90:0.2"
+  [mobilenetv2]="32:0.1:2e-5:300:0.2"
 )
 
 # 3) iterate over the *ordered* list
 for model in "${models[@]}"; do
-  IFS=: read -r bs lr wd ep <<<"${params[$model]}"
-  echo "Training $model (batch_size=$bs, lr=$lr, weight_decay=$wd, epochs=$ep)"
-  python3 fixedres/main_sgd_swa.py fit \
+  # now read batch_size, lr, weight_decay, epochs, and alpha
+  IFS=':' read -r bs lr wd ep alpha <<<"${params[$model]}"
+  echo "Training $model (batch_size=$bs, lr=$lr, weight_decay=$wd, epochs=$ep, alpha=$alpha)"
+
+  python3 msun/main_sgd_swa.py fit \
     --data.data_dir ./imagenet \
     --data.batch_size "$bs" \
     --data.num_workers 16 \
@@ -26,17 +29,18 @@ for model in "${models[@]}"; do
     --model.learning_rate "$lr" \
     --model.weight_decay "$wd" \
     --model.model_name "$model" \
+    --model.alpha "$alpha" \
     --trainer.max_epochs "$ep" \
     --trainer.precision bf16-mixed \
     --trainer.accelerator gpu \
     --trainer.logger WandbLogger \
     --trainer.logger.project msun-anyres \
-    --trainer.logger.name "fixedres-swa-clip-$model" \
+    --trainer.logger.name "msun-$model" \
     --trainer.logger.log_model False \
     --trainer.logger.offline False \
     --trainer.gradient_clip_val 0.5 \
     --swa.swa_lrs 1e-2 \
-    --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-lf/ckpt/msun/fixedres-swa-clip/$model" \
+    --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-lf/ckpt/msun/msun/$model" \
     --model_checkpoint.filename "epoch-{epoch:02d}-val_acc224-{val/acc224:.4f}" \
     --model_checkpoint.auto_insert_metric_name False \
     --model_checkpoint.monitor val/acc224 \
@@ -45,6 +49,3 @@ for model in "${models[@]}"; do
     --model_checkpoint.save_last True \
     --lr_monitor.logging_interval epoch
 done
-
-
-
