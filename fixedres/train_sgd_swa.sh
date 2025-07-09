@@ -17,6 +17,7 @@ declare -A params=(
 for model in "${models[@]}"; do
   IFS=: read -r bs lr wd ep <<<"${params[$model]}"
   echo "Training $model (batch_size=$bs, lr=$lr, weight_decay=$wd, epochs=$ep)"
+  swa_epoch_start=$(awk -v e="$ep" 'BEGIN { printf "%.6f", (e-18)/e }')
   python3 fixedres/main_sgd_swa.py fit \
     --data.data_dir ./imagenet \
     --data.batch_size "$bs" \
@@ -35,6 +36,7 @@ for model in "${models[@]}"; do
     --trainer.logger.log_model False \
     --trainer.logger.offline False \
     --swa.swa_lrs 1e-2 \
+    --swa.swa_epoch_start "$swa_epoch_start" \
     --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-hl-data/ckpt/msun/fixedres-swa/$model" \
     --model_checkpoint.filename "epoch-{epoch:02d}-val_acc224-{val/acc224:.4f}" \
     --model_checkpoint.auto_insert_metric_name False \

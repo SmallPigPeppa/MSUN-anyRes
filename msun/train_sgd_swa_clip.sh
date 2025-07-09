@@ -19,6 +19,7 @@ for model in "${models[@]}"; do
   # now read batch_size, lr, weight_decay, epochs, and alpha
   IFS=':' read -r bs lr wd ep alpha <<<"${params[$model]}"
   echo "Training $model (batch_size=$bs, lr=$lr, weight_decay=$wd, epochs=$ep, alpha=$alpha)"
+  swa_epoch_start=$(awk -v e="$ep" 'BEGIN { printf "%.6f", (e-18)/e }')
 
   python3 msun/main_sgd_swa.py fit \
     --data.data_dir ./imagenet \
@@ -40,6 +41,7 @@ for model in "${models[@]}"; do
     --trainer.logger.offline False \
     --trainer.gradient_clip_val 0.5 \
     --swa.swa_lrs 1e-2 \
+    --swa.swa_epoch_start "$swa_epoch_start" \
     --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-lf/ckpt/msun/msun-swa-clip/$model" \
     --model_checkpoint.filename "epoch-{epoch:02d}-val_acc224-{val/acc224:.4f}" \
     --model_checkpoint.auto_insert_metric_name False \
