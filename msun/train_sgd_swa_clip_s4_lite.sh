@@ -40,6 +40,7 @@ for model in "${models[@]}"; do
     --trainer.logger.log_model False \
     --trainer.logger.offline False \
     --trainer.gradient_clip_val 0.5 \
+    --trainer.strategy ddp_find_unused_parameters_true \
     --swa.swa_lrs 1e-2 \
     --swa.swa_epoch_start "$swa_epoch_start" \
     --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-lf/ckpt/msun/msun-swa-clip-s4-lite/$model" \
@@ -50,5 +51,4 @@ for model in "${models[@]}"; do
     --model_checkpoint.mode max \
     --model_checkpoint.save_last True \
     --lr_monitor.logging_interval epoch
-
 done
