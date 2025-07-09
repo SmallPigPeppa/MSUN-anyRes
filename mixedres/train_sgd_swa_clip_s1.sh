@@ -3,15 +3,15 @@ set -euo pipefail
 
 # 1) define the model order
 models=(resnet50 densenet121 vgg16 mobilenetv2)
-models=(vgg16)
+#models=(vgg16)
 
 # 2) define dict of hyperparams: bs, lr, wd, epochs,  alpha
 
 declare -A params=(
-  [resnet50]="128:0.5:2e-5:90:0.2"
-  [densenet121]="32:0.1:2e-5:90:0.2"
-  [vgg16]="256:0.4:2e-5:90:0.2"
-  [mobilenetv2]="32:0.1:2e-5:300:0.2"
+  [resnet50]="128:0.5:2e-5:90"
+  [densenet121]="32:0.1:2e-5:90"
+  [vgg16]="128:0.5:2e-5:90"
+  [mobilenetv2]="32:0.1:2e-5:300"
 )
 
 # 3) iterate over the *ordered* list
