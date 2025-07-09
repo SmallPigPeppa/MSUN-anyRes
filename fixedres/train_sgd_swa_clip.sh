@@ -3,7 +3,7 @@ set -euo pipefail
 
 # 1) define the exact order you want
 models=(resnet50 densenet121 vgg16 mobilenetv2)
-models=(mobilenetv2)
+models=(densenet121)
 
 # 2) keep your dict of hyperparams
 declare -A params=(
