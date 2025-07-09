@@ -36,7 +36,7 @@ for model in "${models[@]}"; do
     --trainer.accelerator gpu \
     --trainer.logger WandbLogger \
     --trainer.logger.project msun-anyres \
-    --trainer.logger.name "msun-swa-clip-s4-$model" \
+    --trainer.logger.name "msun-s4-$model" \
     --trainer.logger.log_model False \
     --trainer.logger.offline False \
     --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-hl-data/ckpt/msun/msun-s4/$model" \
