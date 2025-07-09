@@ -3,7 +3,7 @@ set -euo pipefail
 
 # 1) define the model order
 models=(resnet50 densenet121 vgg16 mobilenetv2)
-models=(vgg16)
+models=(densenet121)
 
 # 2) define dict of hyperparams: bs, lr, wd, epochs,  alpha
 
@@ -42,7 +42,7 @@ for model in "${models[@]}"; do
     --trainer.gradient_clip_val 0.5 \
     --swa.swa_lrs 1e-2 \
     --swa.swa_epoch_start "$swa_epoch_start" \
-    --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-hl-data/ckpt/msun/msun-swa-clip-s4/$model" \
+    --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-lf/ckpt/msun/msun-swa-clip-s4/$model" \
     --model_checkpoint.filename "epoch-{epoch:02d}-val_acc224-{val/acc224:.4f}" \
     --model_checkpoint.auto_insert_metric_name False \
     --model_checkpoint.monitor val/acc224 \
