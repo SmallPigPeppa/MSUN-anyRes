@@ -50,4 +50,5 @@ for model in "${models[@]}"; do
     --model_checkpoint.mode max \
     --model_checkpoint.save_last True \
     --lr_monitor.logging_interval epoch
+
 done
