@@ -8,12 +8,11 @@ models=(resnet50)
 # 2) define dict of hyperparams: bs, lr, wd, epochs,  alpha
 
 declare -A params=(
-  [resnet50]="128:0.5:2e-5:90:0.2"
-  [densenet121]="128:0.5:2e-5:90:0.1"
-  [vgg16]="128:0.5:2e-5:90:0.2"
-  [mobilenetv2]="128:0.5:2e-5:300:0.2"
+  [resnet50]="128:0.5:2e-5:90:0.1"
+  [densenet121]="32:0.1:2e-5:90:0.1"
+  [vgg16]="128:0.5:2e-5:90:0.1"
+  [mobilenetv2]="32:0.1:2e-5:300:0.1"
 )
-
 # 3) iterate over the *ordered* list
 for model in "${models[@]}"; do
   # now read batch_size, lr, weight_decay, epochs, and alpha

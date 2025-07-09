@@ -11,7 +11,7 @@ declare -A params=(
   [resnet50]="128:0.5:2e-5:90:0.1"
   [densenet121]="32:0.1:2e-5:90:0.1"
   [vgg16]="128:0.5:2e-5:90:0.1"
-  [mobilenetv2]="128:0.5:2e-5:300:0.1"
+  [mobilenetv2]="32:0.1:2e-5:300:0.1"
 )
 
 # 3) iterate over the *ordered* list

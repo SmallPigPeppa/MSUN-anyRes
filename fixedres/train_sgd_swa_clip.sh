@@ -8,11 +8,11 @@ models=(mobilenetv2)
 # 2) keep your dict of hyperparams
 declare -A params=(
   [resnet50]="128:0.5:2e-5:90"
-  [densenet121]="128:0.5:2e-5:90"
+  [densenet121]="32:0.1:2e-5:90"
   [vgg16]="128:0.5:2e-5:90"
-  [mobilenetv2]="128:0.5:2e-5:300"
-
+  [mobilenetv2]="32:0.1:2e-5:300"
 )
+
 
 # 3) iterate over the *ordered* list
 for model in "${models[@]}"; do
