@@ -21,7 +21,7 @@ for model in "${models[@]}"; do
   echo "Training $model (batch_size=$bs, lr=$lr, weight_decay=$wd, epochs=$ep, alpha=$alpha)"
   swa_epoch_start=$(awk -v e="$ep" 'BEGIN { printf "%.6f", (e-18)/e }')
 
-  python3 msun/main_sgd_s4_mobilenetv2 fit \
+  python3 msun/main_sgd_swa_s4.py fit \
     --data.data_dir ./imagenet \
     --data.batch_size "$bs" \
     --data.num_workers 16 \
@@ -36,10 +36,12 @@ for model in "${models[@]}"; do
     --trainer.accelerator gpu \
     --trainer.logger WandbLogger \
     --trainer.logger.project msun-anyres \
-    --trainer.logger.name "msun-s4-$model" \
+    --trainer.logger.name "msun-swa-s4-$model" \
     --trainer.logger.log_model False \
     --trainer.logger.offline False \
-    --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-hl-data/ckpt/msun/msun-s4/$model" \
+    --swa.swa_lrs 1e-2 \
+    --swa.swa_epoch_start "$swa_epoch_start" \
+    --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-hl-data/ckpt/msun/msun-swa-s4/$model" \
     --model_checkpoint.filename "epoch-{epoch:02d}-val_acc224-{val/acc224:.4f}" \
     --model_checkpoint.auto_insert_metric_name False \
     --model_checkpoint.monitor val/acc224 \
