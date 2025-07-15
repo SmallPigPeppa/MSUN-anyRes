@@ -38,8 +38,6 @@ for model in "${models[@]}"; do
     --trainer.logger.name "msun-s4-$model" \
     --trainer.logger.log_model False \
     --trainer.logger.offline False \
-    --swa.swa_lrs 1e-2 \
-    --swa.swa_epoch_start 500 \
     --model_checkpoint.dirpath "/mnt/bn/liuwenzhuo-hl-data/ckpt/msun/msun-s4/$model" \
     --model_checkpoint.filename "epoch-{epoch:02d}-val_acc224-{val/acc224:.4f}" \
     --model_checkpoint.auto_insert_metric_name False \
